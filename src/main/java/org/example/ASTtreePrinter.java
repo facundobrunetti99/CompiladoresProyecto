@@ -34,13 +34,13 @@ public class ASTtreePrinter implements ASTVisitor {
         depth = 0;
         currentIndent = "";
         
-        output.append("🌳 ABSTRACT SYNTAX TREE (AST)\n");
+        output.append("ABSTRACT SYNTAX TREE (AST)\n");
         output.append("═════════════════════════════════════\n");
         
         if (root != null) {
             root.accept(this);
         } else {
-            output.append("❌ AST is null\n");
+            output.append("AST is null\n");
         }
         
         output.append("═════════════════════════════════════\n");

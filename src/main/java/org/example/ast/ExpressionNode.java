@@ -1,10 +1,4 @@
 
-
-/**
- * Clase base para expresiones
- */
-
-
 package org.example.ast;
 
 public abstract class ExpressionNode extends ASTNode {

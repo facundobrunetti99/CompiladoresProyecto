@@ -5,5 +5,5 @@ package org.example.ast;
  */
 
 public abstract class StatementNode extends ASTNode {
-    // Base class for all statements
+    
 }

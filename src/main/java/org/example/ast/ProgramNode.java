@@ -1,8 +1,4 @@
 package org.example.ast;
-
-/**
- * Nodo para el programa principal
- */
 public class ProgramNode extends ASTNode {
     private String returnType;
     private MainFunctionNode mainFunction;
