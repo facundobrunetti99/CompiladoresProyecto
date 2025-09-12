@@ -157,41 +157,43 @@ public class parser extends java_cup.runtime.lr_parser {
 
     // Symbol table for variable declarations
     private Map<String, String> symbolTable = new HashMap<>();
-
-    public void report_error(String message, Object info) {
-        StringBuffer m = new StringBuffer("Error");
+       //Esta funcion maneja errores de sintxis y los reporta con linea y columna 
+       //Error en linea 5 columna 10 : mensaje de error errores sintacticos
+     public void report_error(String message, Object info) {
+        StringBuffer m = new StringBuffer("Error Sintáctico");
 
         if (info instanceof java_cup.runtime.Symbol) {
             java_cup.runtime.Symbol s = ((java_cup.runtime.Symbol) info);
 
             if (s.left >= 0) {
-                m.append(" in line "+(s.left+1));
+                m.append(" en línea " + (s.left + 1));
                 if (s.right >= 0)
-                    m.append(", column "+(s.right+1));
+                    m.append(", columna " + (s.right + 1));
             }
         }
 
-        m.append(" : "+message);
+        m.append(" : " + message);
         System.err.println(m);
     }
 
+    // ERRORES SINTÁCTICOS FATALES
     public void report_fatal_error(String message, Object info) {
-        report_error(message, info);
+        report_error(message, info);  
         System.exit(1);
     }
 
-    // Method to check if a variable is declared
+    // ERROR SEMÁNTICO - Variable no declarada
     public void checkVariable(String varName) {
         if (!symbolTable.containsKey(varName)) {
-            System.err.println("Error: Variable '" + varName + "' not declared");
+            System.err.println("Error Semántico: Variable '" + varName + "' not declared");
             System.exit(1);
         }
     }
 
-    // Method to add variable to symbol table
+    // ERROR SEMÁNTICO - Variable ya declarada
     public void addVariable(String varName, String type) {
         if (symbolTable.containsKey(varName)) {
-            System.err.println("Error: Variable '" + varName + "' already declared");
+            System.err.println("Error Semántico: Variable '" + varName + "' already declared");
             System.exit(1);
         }
         symbolTable.put(varName, type);

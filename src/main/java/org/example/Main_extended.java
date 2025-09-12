@@ -86,18 +86,18 @@ public class Main_extended {
             }
 
             // Crear el parser
-            System.out.println("Creando analizador sintáctico...");
+            System.out.println("Creando analizador...");
             parser p = new parser(lexer);
 
             if (showParsing) {
-                System.out.println("\n=== ANÁLISIS SINTÁCTICO ===");
+                System.out.println("\n=== ANÁLISIS  ===");
             }
 
             // Ejecutar el parsing
-            System.out.println("Ejecutando análisis sintáctico...");
+            System.out.println("Ejecutando análisis ...");
             Object result = p.parse().value;
 
-            System.out.println("Análisis sintáctico completado exitosamente");
+            System.out.println("Análisis completado exitosamente");
 
             // Mostrar resultado básico
             if (result != null) {
@@ -112,7 +112,7 @@ public class Main_extended {
 
                     // MOSTRAR ÁRBOL AST EN CONSOLA
                     if (showTree) {
-                        System.out.println("\n=== ÁRBOL SINTÁCTICO ABSTRACTO (AST) ===");
+                        System.out.println("\n=== ÁRBOL ABSTRACTO (AST) ===");
                         try {
                             ASTtreePrinter treePrinter = new ASTtreePrinter();
                             String treeOutput = treePrinter.printTree(program);
@@ -140,18 +140,18 @@ public class Main_extended {
                     }
 
                     // Generar código Assembly si se solicita
-                    if (generateAssembly) {
-                        System.out.println("\n=== GENERACIÓN DE CÓDIGO ASSEMBLY ===");
+                  /*   if (generateAssembly) {
+                        System.out.println("\nGENERACIÓN DE CÓDIGO ASSEMBLY ");
                         try {
                             AssemblyGenerator generator = new AssemblyGenerator();
                             String assemblyCode = generator.generateCode(program);
-                            System.out.println("✓ Código Assembly generado:");
+                            System.out.println("Código Assembly generado:");
                             System.out.println(assemblyCode);
                         } catch (Exception e) {
                             System.err.println("Error durante la generación de Assembly:");
                             e.printStackTrace();
                         }
-                    }
+                    } */
                 } else {
                     System.err.println("El resultado del parsing no es un ProgramNode válido");
                 }
