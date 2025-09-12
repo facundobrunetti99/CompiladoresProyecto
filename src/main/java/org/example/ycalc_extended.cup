@@ -1,10 +1,3 @@
-/*
-  File Name: ycalc_extended.cup
-  Extended parser for the compiler project with AST generation
-  To Create: > java -cp java-cup-11b.jar java_cup.Main -package org.example -parser parser -symbols sym ycalc_extended.cup
-*/
-
-/* ----------------------Preliminary Declarations Section--------------------*/
 
 package org.example;
 
