@@ -1,4 +1,10 @@
-Ejecucion
+Ejecucion del codigo
+
+
+Importante
+
+
+Posicionarse en la carpeta raiz /CompiladoresProyecto/ =>> escribir el comando aca
 
 
 
