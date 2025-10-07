@@ -132,6 +132,9 @@ public class Main_extended {
                             System.out.println("Interpretación completada");
                             if (interpretResult != null) {
                                 System.out.println("Valor de retorno del programa: " + interpretResult);
+                                System.out.println("===========================================");
+                                System.out.println("==> RESULTADO FINAL: " + interpretResult + " <==");
+                                System.out.println("===========================================");
                             }
                         } catch (Exception e) {
                             System.err.println("Error durante la interpretación:");
@@ -140,7 +143,7 @@ public class Main_extended {
                     }
 
                     // Generar código Assembly si se solicita
-                   /*  if (generateAssembly) {
+                     if (generateAssembly) {
                         System.out.println("\n=== GENERACIÓN DE CÓDIGO ASSEMBLY ===");
                         try {
                             AssemblyGenerator generator = new AssemblyGenerator();
@@ -151,7 +154,7 @@ public class Main_extended {
                             System.err.println("Error durante la generación de Assembly:");
                             e.printStackTrace();
                         }
-                    } */
+                    } 
                 } else {
                     System.err.println("El resultado del parsing no es un ProgramNode válido");
                 }

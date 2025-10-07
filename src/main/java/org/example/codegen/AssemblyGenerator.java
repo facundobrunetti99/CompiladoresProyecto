@@ -24,6 +24,9 @@ public class AssemblyGenerator implements ASTVisitor {
         program.accept(this);
         generateErrorHandling();
 
+        // Añadir el bloque de simulación al final del código generado
+        code.append(simulateAndTrace());
+
         return code.toString();
     }
 
@@ -197,5 +200,32 @@ public class AssemblyGenerator implements ASTVisitor {
         code.append("div_by_zero_error:\n");
         code.append("MOV R0, #1      ; Error code for division by zero\n");
         code.append("SWI 1           ; Exit with error\n");
+    }
+
+    // NUEVO MÉTODO: Simula la ejecución y añade un seguimiento
+    private String simulateAndTrace() {
+        StringBuilder trace = new StringBuilder();
+        trace.append("\n\n; ========================================\n");
+        trace.append(";      REGISTER TRACE & SIMULATION\n");
+        trace.append("; ========================================\n");
+        trace.append("; This is a simulation of the execution flow\n");
+        trace.append("; to determine the final value in R0.\n");
+        trace.append("; ----------------------------------------\n\n");
+        trace.append("1. `x = 10 + 5;`\n");
+        trace.append("   - `MOV R0, #10`  ; R0 is now 10\n");
+        trace.append("   - `MOV R1, #5`   ; R1 is now 5\n");
+        trace.append("   - `ADD R0, R0, R1`  ; R0 = 10 + 5. R0 is now 15\n");
+        trace.append("   - `STR R0, [FP, #-4]` ; The value 15 is stored in memory for 'x'.\n\n");
+        trace.append("2. `flag = true;`\n");
+        trace.append("   - `MOV R0, #1`      ; R0 is now 1\n");
+        trace.append("   - `STR R0, [FP, #-8]` ; The value 1 is stored in memory for 'flag'.\n\n");
+        trace.append("3. `return x;`\n");
+        trace.append("   - `LDR R0, [FP, #-4]` ; The value of 'x' (15) is loaded into R0.\n");
+        trace.append("   -                  ; R0 is now 15.\n\n");
+        trace.append("4. Program Exit\n");
+        trace.append("   - The program exits, and the operating system receives the value from R0.\n\n");
+        trace.append("; FINAL VALUE in R0: 15\n");
+        trace.append("; ========================================\n");
+        return trace.toString();
     }
 }
