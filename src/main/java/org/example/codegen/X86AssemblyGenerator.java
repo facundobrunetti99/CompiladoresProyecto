@@ -4,7 +4,8 @@ import org.example.ast.*;
 import java.util.*;
 
 /**
- * Generador de código Assembly x86-64 con simulación paso a paso
+ * Generador de Assembly x86-64 limpio y minimalista
+ * Estilo similar a ejemplos educativos (como fibonacci)
  */
 public class X86AssemblyGenerator implements ASTVisitor {
 
@@ -17,6 +18,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
     private int labelCounter;
     private String returnType;
     private int stepCounter;
+    private boolean hasReturn = false;
 
     public X86AssemblyGenerator() {
         this.code = new StringBuilder();
@@ -38,18 +40,16 @@ public class X86AssemblyGenerator implements ASTVisitor {
     }
 
     public String generateCode(ProgramNode program) {
-        code.append(".section .text\n");
-        code.append(".global main\n\n");
-
         program.accept(this);
 
-        // Construir salida completa
         StringBuilder output = new StringBuilder();
         output.append("# ========================================\n");
-        output.append("# x86-64 Assembly Code (AT&T Syntax)\n");
+        output.append("# EXECUTABLE x86-64 Assembly Code\n");
         output.append("# ========================================\n\n");
+        output.append(".section .text\n");
+        output.append(".global main\n\n");
         output.append(code.toString());
-        output.append("\n\n");
+        output.append("\n");
         output.append(generateSimulationTrace());
         
         return output.toString();
@@ -57,7 +57,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
     private void addSimulationStep(String instruction, String description) {
         stepCounter++;
-        simulation.append(String.format("Step %d: %-30s # %s\n", stepCounter, instruction, description));
+        simulation.append(String.format("Step %d: %-40s # %s\n", stepCounter, instruction, description));
     }
 
     private void updateRegister(String reg, long value) {
@@ -90,12 +90,10 @@ public class X86AssemblyGenerator implements ASTVisitor {
         
         if (localVarCount > 0) {
             int stackSpace = ((localVarCount * 8) + 15) & ~15;
-            code.append("    subq $").append(stackSpace).append(", %rsp\n");
+            code.append("    subq $").append(stackSpace).append(", %rsp\n\n");
             addSimulationStep("subq $" + stackSpace + ", %rsp", 
                 "Allocate " + stackSpace + " bytes for " + localVarCount + " variable(s)");
         }
-
-        code.append("\n");
 
         for (DeclarationNode decl : node.getDeclarations()) {
             decl.accept(this);
@@ -104,10 +102,6 @@ public class X86AssemblyGenerator implements ASTVisitor {
         for (StatementNode stmt : node.getStatements()) {
             stmt.accept(this);
         }
-
-        code.append("    movq %rbp, %rsp\n");
-        code.append("    popq %rbp\n");
-        code.append("    ret\n");
     }
 
     @Override
@@ -144,19 +138,27 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
     @Override
     public void visit(ReturnNode node) {
+        hasReturn = true;
+        
         if (node.hasExpression()) {
             node.getExpression().accept(this);
             long returnValue = getRegister("rax");
             
             addSimulationStep("# Return statement", "Return value = " + returnValue);
             simulation.append("         >> RETURN VALUE: ").append(returnValue).append("\n\n");
+        } else {
+            code.append("    movq $0, %rax\n");
+            updateRegister("rax", 0);
         }
 
+        // Epílogo limpio
         code.append("    movq %rbp, %rsp\n");
         code.append("    popq %rbp\n");
         code.append("    ret\n");
         
-        addSimulationStep("ret", "Return to caller");
+        addSimulationStep("movq %rbp, %rsp", "Restore stack pointer");
+        addSimulationStep("popq %rbp", "Restore frame pointer");
+        addSimulationStep("ret", "Return with value " + getRegister("rax"));
     }
 
     @Override
@@ -189,27 +191,42 @@ public class X86AssemblyGenerator implements ASTVisitor {
                 operation = leftValue + " + " + rightValue + " = " + result;
                 addSimulationStep("addq %rbx, %rax", operation);
                 break;
+                
             case "-":
                 code.append("    subq %rbx, %rax\n");
                 result = leftValue - rightValue;
                 operation = leftValue + " - " + rightValue + " = " + result;
                 addSimulationStep("subq %rbx, %rax", operation);
                 break;
+                
             case "*":
                 code.append("    imulq %rbx, %rax\n");
                 result = leftValue * rightValue;
                 operation = leftValue + " * " + rightValue + " = " + result;
                 addSimulationStep("imulq %rbx, %rax", operation);
                 break;
+                
             case "/":
                 if (rightValue == 0) {
                     throw new RuntimeException("Division by zero");
                 }
-                code.append("    cqto\n");
-                code.append("    idivq %rbx\n");
+                
+                // División usando loop (compatible con emuladores básicos)
+                String divLabel = generateLabel();
+                
+                code.append("    movq $0, %rcx\n");
+                code.append(divLabel).append("_loop:\n");
+                code.append("    cmpq %rbx, %rax\n");
+                code.append("    jl ").append(divLabel).append("_end\n");
+                code.append("    subq %rbx, %rax\n");
+                code.append("    addq $1, %rcx\n");
+                code.append("    jmp ").append(divLabel).append("_loop\n");
+                code.append(divLabel).append("_end:\n");
+                code.append("    movq %rcx, %rax\n");
+                
                 result = leftValue / rightValue;
                 operation = leftValue + " / " + rightValue + " = " + result;
-                addSimulationStep("idivq %rbx", operation);
+                addSimulationStep("Division loop", operation);
                 break;
         }
         
