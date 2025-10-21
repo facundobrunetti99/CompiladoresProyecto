@@ -1,9 +1,9 @@
 int main() {
     int x;
     int y;
-    int z;
+    
     x = 20;
     y = 5;
-    z=40;
-    return (x/y)*z;
+    
+    return x*y;
 }

@@ -4,20 +4,19 @@ import org.example.ast.*;
 import java.util.*;
 
 /**
- * Generador de Assembly x86-64 limpio y minimalista
- * Estilo similar a ejemplos educativos (como fibonacci)
+ * Generador de Assembly x86-64 limpio 
  */
 public class X86AssemblyGenerator implements ASTVisitor {
 
-    private StringBuilder code;
-    private StringBuilder simulation;
-    private Map<String, Integer> variables;
-    private Map<String, Integer> simulatedMemory;
-    private Map<String, Long> registers;
-    private int stackOffset;
-    private int labelCounter;
-    private String returnType;
-    private int stepCounter;
+    private StringBuilder code; // Almacena el código Assembly generado
+    private StringBuilder simulation; // Almacena la simulación paso a paso
+    private Map<String, Integer> variables;// Mapa de variables y sus offsets en la pila
+    private Map<String, Integer> simulatedMemory;// Simulación de memoria para variables
+    private Map<String, Long> registers;// Simulación de registros
+    private int stackOffset;//Posición actual en la pila
+    private int labelCounter;// Contador para generar etiquetas únicas
+    private String returnType;// Tipo de retorno del programa
+    private int stepCounter;// Contador de pasos en la simulación
     private boolean hasReturn = false;
 
     public X86AssemblyGenerator() {
@@ -43,9 +42,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
         program.accept(this);
 
         StringBuilder output = new StringBuilder();
-        output.append("# ========================================\n");
         output.append("# EXECUTABLE x86-64 Assembly Code\n");
-        output.append("# ========================================\n\n");
         output.append(".section .text\n");
         output.append(".global main\n\n");
         output.append(code.toString());
@@ -72,7 +69,6 @@ public class X86AssemblyGenerator implements ASTVisitor {
     public void visit(ProgramNode node) {
         this.returnType = node.getReturnType();
         simulation.append("# SIMULATION START - Program with return type: ").append(returnType).append("\n");
-        simulation.append("# ========================================\n\n");
         
         node.getMainFunction().accept(this);
     }
@@ -278,15 +274,15 @@ public class X86AssemblyGenerator implements ASTVisitor {
     private String generateSimulationTrace() {
         StringBuilder trace = new StringBuilder();
         
-        trace.append("# ========================================\n");
+    
         trace.append("#     EXECUTION TRACE & SIMULATION\n");
-        trace.append("# ========================================\n\n");
+        
         
         trace.append(simulation.toString());
         
-        trace.append("\n# ========================================\n");
+       
         trace.append("#           FINAL STATE\n");
-        trace.append("# ========================================\n");
+        
         trace.append("# Registers:\n");
         trace.append("#   rax = ").append(getRegister("rax")).append("\n");
         trace.append("#   rbx = ").append(getRegister("rbx")).append("\n");
@@ -299,9 +295,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
         }
         
         trace.append("#\n");
-        trace.append("# ========================================\n");
         trace.append("#   FINAL RESULT (return value): ").append(getRegister("rax")).append("\n");
-        trace.append("# ========================================\n");
         
         return trace.toString();
     }
