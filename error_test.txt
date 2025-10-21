@@ -1,7 +1,8 @@
 int main() {
     int x;
     int y;
-    x = 3;
+    x = 20;
     y = 5;
-    return y * x;
+    
+    return x/y;
 }

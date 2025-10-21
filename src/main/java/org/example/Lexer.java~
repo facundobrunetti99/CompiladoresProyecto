@@ -5,13 +5,14 @@
 /*
   File Name: lcalc_extended.flex
   Extended lexer for the compiler project
-  To Create: mvn generate-sources
+  To Create: java -cp jflex-1.8.2.jar jflex.Main lcalc_extended.flex
 */
 
 /* --------------------------Usercode Section------------------------ */
 
 package org.example;
 import java_cup.runtime.*;
+import org.example.sym;
       
 
 @SuppressWarnings("fallthrough")

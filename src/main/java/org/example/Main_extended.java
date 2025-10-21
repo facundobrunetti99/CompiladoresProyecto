@@ -1,8 +1,8 @@
 package org.example;
 import org.example.ast.*;
-import org.example.codegen.AssemblyGenerator;
-import org.example.interpetrer.Interpreter;
-import org.example.ASTtreePrinter; // ← Nueva importación
+import org.example.codegen.X86AssemblyGenerator;
+
+import org.example.ASTtreePrinter;
 import org.example.Lexer;
 import java.io.*;
 
@@ -18,7 +18,7 @@ public class Main_extended {
                 System.err.println("  -parse     : Solo parsing");
                 System.err.println("  -tree      : Mostrar árbol AST en consola");
                 System.err.println("  -interpret : Ejecutar interpretación");
-                System.err.println("  -asm       : Generar código Assembly");
+                System.err.println("  -asm       : Generar código Assembly x86-64");
                 System.err.println("  -all       : Hacer todo");
                 System.exit(1);
             }
@@ -27,7 +27,6 @@ public class Main_extended {
             boolean showTokens = false;
             boolean showParsing = false;
             boolean showTree = false;
-            // ← Variable agregada
             boolean runInterpreter = false;
             boolean generateAssembly = false;
 
@@ -43,7 +42,6 @@ public class Main_extended {
                     case "-tree":
                         showTree = true;
                         break;
-
                     case "-interpret":
                         runInterpreter = true;
                         break;
@@ -54,7 +52,6 @@ public class Main_extended {
                         showTokens = true;
                         showParsing = true;
                         showTree = true;
-
                         runInterpreter = true;
                         generateAssembly = true;
                         break;
@@ -124,32 +121,25 @@ public class Main_extended {
                     }
 
                     // Ejecutar interpretación si se solicita
-                    if (runInterpreter) {
-                        System.out.println("\n=== INTERPRETACIÓN ===");
-                        try {
-                            Interpreter interpreter = new Interpreter();
-                            Object interpretResult = interpreter.interpret(program);
-                            System.out.println("Interpretación completada");
-                            if (interpretResult != null) {
-                                System.out.println("Valor de retorno del programa: " + interpretResult);
-                                System.out.println("===========================================");
-                                System.out.println("==> RESULTADO FINAL: " + interpretResult + " <==");
-                                System.out.println("===========================================");
-                            }
-                        } catch (Exception e) {
-                            System.err.println("Error durante la interpretación:");
-                            e.printStackTrace();
-                        }
-                    }
+                
 
-                    // Generar código Assembly si se solicita
-                     if (generateAssembly) {
-                        System.out.println("\n=== GENERACIÓN DE CÓDIGO ASSEMBLY ===");
+                    // Generar código Assembly x86-64 si se solicita
+                    if (generateAssembly) {
+                        System.out.println("\n=== GENERACIÓN DE CÓDIGO ASSEMBLY x86-64 ===");
                         try {
-                            AssemblyGenerator generator = new AssemblyGenerator();
+                            X86AssemblyGenerator generator = new X86AssemblyGenerator();
                             String assemblyCode = generator.generateCode(program);
-                            System.out.println("✓ Código Assembly generado:");
+                            System.out.println("✓ Código Assembly generado:\n");
                             System.out.println(assemblyCode);
+                            
+                            // Opcional: guardar en archivo
+                            String outputFile = inputFile.replace(".txt", ".s");
+                            try (PrintWriter writer = new PrintWriter(outputFile)) {
+                                writer.println(assemblyCode);
+                                System.out.println("\n✓ Código guardado en: " + outputFile);
+                            } catch (IOException e) {
+                                System.err.println("No se pudo guardar el archivo .s: " + e.getMessage());
+                            }
                         } catch (Exception e) {
                             System.err.println("Error durante la generación de Assembly:");
                             e.printStackTrace();
