@@ -207,7 +207,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
                     throw new RuntimeException("Division by zero");
                 }
                 
-                // División usando loop (compatible con emuladores básicos)
+                // División usando loop (cambios porque no funcionaba con el emuladorweb)
                 String divLabel = generateLabel();
                 
                 code.append("    movq $0, %rcx\n");
