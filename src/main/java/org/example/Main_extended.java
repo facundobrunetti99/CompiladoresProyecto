@@ -1,8 +1,8 @@
 package org.example;
 import org.example.ast.*;
 import org.example.codegen.X86AssemblyGenerator;
-
-import org.example.ASTtreePrinter;
+import org.example.interpreter.*;
+import org.example.ASTtreePrinter;  
 import org.example.Lexer;
 import java.io.*;
 
@@ -16,7 +16,7 @@ public class Main_extended {
                 System.err.println("Opciones:");
                 System.err.println("  -tokens    : Mostrar tokens");
                 System.err.println("  -parse     : Solo parsing");
-                System.err.println("  -tree      : Mostrar árbol AST en consola");
+                System.err.println("  -tree      : Mostrar árbol AST con valores calculados");
                 System.err.println("  -interpret : Ejecutar interpretación");
                 System.err.println("  -asm       : Generar código Assembly x86-64");
                 System.err.println("  -all       : Hacer todo");
@@ -107,7 +107,7 @@ public class Main_extended {
                 if (result instanceof ProgramNode) {
                     ProgramNode program = (ProgramNode) result;
 
-                    // MOSTRAR ÁRBOL AST EN CONSOLA
+                    // MOSTRAR ÁRBOL AST CON VALORES CALCULADOS
                     if (showTree) {
                         System.out.println("\n=== ÁRBOL SINTÁCTICO ABSTRACTO (AST) ===");
                         try {
@@ -121,7 +121,23 @@ public class Main_extended {
                     }
 
                     // Ejecutar interpretación si se solicita
-                
+                    if (runInterpreter) {
+                        System.out.println("\n=== INTERPRETACIÓN ===");
+                        try {
+                            Interpreter interpreter = new Interpreter();
+                            Object interpretResult = interpreter.interpret(program);
+                            System.out.println("Interpretación completada");
+                            if (interpretResult != null) {
+                                System.out.println("Valor de retorno del programa: " + interpretResult);
+                                System.out.println("===========================================");
+                                System.out.println("==> RESULTADO FINAL: " + interpretResult + " <==");
+                                System.out.println("===========================================");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("Error durante la interpretación:");
+                            e.printStackTrace();
+                        }
+                    }
 
                     // Generar código Assembly x86-64 si se solicita
                     if (generateAssembly) {

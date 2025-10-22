@@ -3,202 +3,245 @@ package org.example;
 import org.example.ast.*;
 import java.util.*;
 
-/**
- * Clase para imprimir el AST como un árbol visual en consola
- */
+
 public class ASTtreePrinter implements ASTVisitor {
     
     private StringBuilder output;
-    private String currentIndent;
-    private boolean[] isLastChild;
-    private int depth;
-    
-    // Constantes para los caracteres del árbol
-    private static final String TREE_BRANCH = "├── ";
-    private static final String TREE_LAST_BRANCH = "└── ";
-    private static final String TREE_VERTICAL = "│   ";
-    private static final String TREE_SPACE = "    ";
+    private int indentLevel;
+    private Map<String, Integer> variables;  // Tabla de símbolos con valores
     
     public ASTtreePrinter() {
         this.output = new StringBuilder();
-        this.currentIndent = "";
-        this.isLastChild = new boolean[50]; // Máximo 50 niveles de profundidad
-        this.depth = 0;
+        this.indentLevel = 0;
+        this.variables = new HashMap<>();
     }
     
-    /**
-     * Método principal para imprimir el árbol
-     */
-    public String printTree(ASTNode root) {
-        output.setLength(0); // Limpiar output previo
-        depth = 0;
-        currentIndent = "";
+    public String printTree(ProgramNode program) {
+        output.append("═══════════════════════════════════════════════\n");
+        output.append("  ABSTRACT SYNTAX TREE (AST) WITH VALUES\n");
+        output.append("═══════════════════════════════════════════════\n\n");
         
-        output.append("ABSTRACT SYNTAX TREE (AST)\n");
-        output.append("═════════════════════════════════════\n");
+        program.accept(this);
         
-        if (root != null) {
-            root.accept(this);
-        } else {
-            output.append("AST is null\n");
+        output.append("\n═══════════════════════════════════════════════\n");
+        output.append("  SYMBOL TABLE (Final Values)\n");
+        output.append("═══════════════════════════════════════════════\n");
+        for (Map.Entry<String, Integer> entry : variables.entrySet()) {
+            output.append("  ").append(entry.getKey()).append(" = ").append(entry.getValue()).append("\n");
         }
+        output.append("═══════════════════════════════════════════════\n");
         
-        output.append("═════════════════════════════════════\n");
         return output.toString();
     }
     
-    /**
-     * Método auxiliar para manejar la indentación
-     */
-    private void printWithIndent(String nodeType, String details, boolean isLast) {
-        // Construir la indentación
-        StringBuilder indent = new StringBuilder();
-        for (int i = 0; i < depth - 1; i++) {
-            if (isLastChild[i]) {
-                indent.append(TREE_SPACE);
+    private void printIndent() {
+        for (int i = 0; i < indentLevel; i++) {
+            if (i == indentLevel - 1) {
+                output.append("├── ");
             } else {
-                indent.append(TREE_VERTICAL);
+                output.append("│   ");
             }
         }
-        
-        // Agregar el branch apropiado
-        if (depth > 0) {
-            if (isLast) {
-                indent.append(TREE_LAST_BRANCH);
+    }
+    
+    private void printLastIndent() {
+        for (int i = 0; i < indentLevel; i++) {
+            if (i == indentLevel - 1) {
+                output.append("└── ");
             } else {
-                indent.append(TREE_BRANCH);
+                output.append("│   ");
             }
-        }
-        
-        // Imprimir el nodo
-        output.append(indent).append("📄 ").append(nodeType);
-        if (details != null && !details.isEmpty()) {
-            output.append(" ➤ ").append(details);
-        }
-        output.append("\n");
-        
-        // Actualizar estado para hijos
-        if (depth < isLastChild.length) {
-            isLastChild[depth] = isLast;
         }
     }
     
     @Override
     public void visit(ProgramNode node) {
-        printWithIndent("PROGRAM", "Return Type: " + node.getReturnType(), true);
-        
-        depth++;
-        if (node.getMainFunction() != null) {
-            node.getMainFunction().accept(this);
-        }
-        depth--;
+        output.append("PROGRAM\n");
+        output.append("│   Return Type: ").append(node.getReturnType()).append("\n");
+        indentLevel++;
+        node.getMainFunction().accept(this);
+        indentLevel--;
     }
     
     @Override
     public void visit(MainFunctionNode node) {
-        printWithIndent("MAIN_FUNCTION", null, true);
+        printIndent();
+        output.append("MAIN FUNCTION\n");
+        indentLevel++;
         
-        depth++;
-        
-        // Imprimir declaraciones
-        List<DeclarationNode> declarations = node.getDeclarations();
-        List<StatementNode> statements = node.getStatements();
-        
-        int totalChildren = declarations.size() + statements.size();
-        int currentChild = 0;
-        
-        // Procesar declaraciones
-        for (DeclarationNode decl : declarations) {
-            currentChild++;
-            boolean isLast = (currentChild == totalChildren);
-            isLastChild[depth] = isLast;
-            decl.accept(this);
+        // Declaraciones
+        if (!node.getDeclarations().isEmpty()) {
+            printIndent();
+            output.append("DECLARATIONS\n");
+            indentLevel++;
+            for (DeclarationNode decl : node.getDeclarations()) {
+                decl.accept(this);
+            }
+            indentLevel--;
         }
         
-        // Procesar sentencias
-        for (StatementNode stmt : statements) {
-            currentChild++;
-            boolean isLast = (currentChild == totalChildren);
-            isLastChild[depth] = isLast;
-            stmt.accept(this);
+        // Statements
+        if (!node.getStatements().isEmpty()) {
+            printIndent();
+            output.append("STATEMENTS\n");
+            indentLevel++;
+            for (int i = 0; i < node.getStatements().size(); i++) {
+                StatementNode stmt = node.getStatements().get(i);
+                stmt.accept(this);
+            }
+            indentLevel--;
         }
         
-        depth--;
+        indentLevel--;
     }
     
     @Override
     public void visit(VariableDeclarationNode node) {
-        String details = "Type: " + node.getType() + ", Identifier: " + node.getIdentifier();
-        printWithIndent("VARIABLE_DECLARATION", details, isLastChild[depth]);
+        printIndent();
+        output.append("VAR DECLARATION: ")
+              .append(node.getType())
+              .append(" ")
+              .append(node.getIdentifier())
+              .append("\n");
+        
+        // Inicializar variable en 0
+        variables.put(node.getIdentifier(), 0);
     }
     
     @Override
     public void visit(AssignmentNode node) {
-        String details = "Variable: " + node.getIdentifier();
-        printWithIndent("ASSIGNMENT", details, isLastChild[depth]);
+        printIndent();
+        output.append("ASSIGNMENT: ").append(node.getIdentifier()).append(" = ");
         
-        depth++;
-        if (node.getExpression() != null) {
-            isLastChild[depth] = true;
-            node.getExpression().accept(this);
-        }
-        depth--;
+        // Evaluar la expresión
+        int value = evaluateExpression(node.getExpression());
+        variables.put(node.getIdentifier(), value);
+        
+        output.append(value).append("\n");
+        
+        indentLevel++;
+        printIndent();
+        output.append("Expression:\n");
+        indentLevel++;
+        node.getExpression().accept(this);
+        indentLevel--;
+        indentLevel--;
     }
     
     @Override
     public void visit(ReturnNode node) {
-        String details = node.hasExpression() ? "with expression" : "void";
-        printWithIndent("RETURN", details, isLastChild[depth]);
+        printIndent();
+        output.append("RETURN");
         
         if (node.hasExpression()) {
-            depth++;
-            isLastChild[depth] = true;
+            int value = evaluateExpression(node.getExpression());
+            output.append(": ").append(value).append("\n");
+            
+            indentLevel++;
+            printIndent();
+            output.append("Expression:\n");
+            indentLevel++;
             node.getExpression().accept(this);
-            depth--;
+            indentLevel--;
+            indentLevel--;
+        } else {
+            output.append(" (void)\n");
         }
     }
     
     @Override
     public void visit(BinaryOpNode node) {
-        String details = "Operator: " + node.getOperator();
-        printWithIndent("BINARY_OPERATION", details, isLastChild[depth]);
+        int leftValue = evaluateExpression(node.getLeft());
+        int rightValue = evaluateExpression(node.getRight());
+        int result = 0;
         
-        depth++;
+        switch (node.getOperator()) {
+            case "+": result = leftValue + rightValue; break;
+            case "-": result = leftValue - rightValue; break;
+            case "*": result = leftValue * rightValue; break;
+            case "/": result = rightValue != 0 ? leftValue / rightValue : 0; break;
+        }
         
-        // Operando izquierdo
-        isLastChild[depth] = false;
-        printWithIndent("LEFT_OPERAND", null, false);
-        depth++;
-        isLastChild[depth] = true;
+        printIndent();
+        output.append("BINARY OP: ")
+              .append(leftValue)
+              .append(" ")
+              .append(node.getOperator())
+              .append(" ")
+              .append(rightValue)
+              .append(" = ")
+              .append(result)
+              .append("\n");
+        
+        indentLevel++;
+        
+        printIndent();
+        output.append("Left:\n");
+        indentLevel++;
         node.getLeft().accept(this);
-        depth--;
+        indentLevel--;
         
-        // Operando derecho
-        isLastChild[depth] = true;
-        printWithIndent("RIGHT_OPERAND", null, true);
-        depth++;
-        isLastChild[depth] = true;
+        printIndent();
+        output.append("Right:\n");
+        indentLevel++;
         node.getRight().accept(this);
-        depth--;
+        indentLevel--;
         
-        depth--;
+        indentLevel--;
     }
     
     @Override
     public void visit(NumberNode node) {
-        String details = "Value: " + node.getValue();
-        printWithIndent("NUMBER", details, isLastChild[depth]);
+        printIndent();
+        output.append("NUMBER: ").append(node.getValue()).append("\n");
     }
     
     @Override
     public void visit(BooleanNode node) {
-        String details = "Value: " + node.getValue();
-        printWithIndent("BOOLEAN", details, isLastChild[depth]);
+        printIndent();
+        output.append("BOOLEAN: ").append(node.getValue()).append("\n");
     }
     
     @Override
     public void visit(VariableNode node) {
-        String details = "Identifier: " + node.getIdentifier();
-        printWithIndent("VARIABLE", details, isLastChild[depth]);
+        Integer value = variables.get(node.getIdentifier());
+        printIndent();
+        output.append("VARIABLE: ")
+              .append(node.getIdentifier())
+              .append(" = ")
+              .append(value != null ? value : "undefined")
+              .append("\n");
+    }
+    
+    /**
+     * Evalúa una expresión y devuelve su valor
+     */
+    private int evaluateExpression(ExpressionNode expr) {
+        if (expr instanceof NumberNode) {
+            return ((NumberNode) expr).getValue();
+        } 
+        else if (expr instanceof BooleanNode) {
+            return ((BooleanNode) expr).getValue() ? 1 : 0;
+        }
+        else if (expr instanceof VariableNode) {
+            String varName = ((VariableNode) expr).getIdentifier();
+            Integer value = variables.get(varName);
+            return value != null ? value : 0;
+        }
+        else if (expr instanceof BinaryOpNode) {
+            BinaryOpNode binOp = (BinaryOpNode) expr;
+            int left = evaluateExpression(binOp.getLeft());
+            int right = evaluateExpression(binOp.getRight());
+            
+            switch (binOp.getOperator()) {
+                case "+": return left + right;
+                case "-": return left - right;
+                case "*": return left * right;
+                case "/": return right != 0 ? left / right : 0;
+                default: return 0;
+            }
+        }
+        
+        return 0;
     }
 }

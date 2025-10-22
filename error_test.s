@@ -1,7 +1,4 @@
-# ========================================
 # EXECUTABLE x86-64 Assembly Code
-# ========================================
-
 .section .text
 .global main
 
@@ -26,13 +23,8 @@ main:
     popq %rbp
     ret
 
-# ========================================
 #     EXECUTION TRACE & SIMULATION
-# ========================================
-
 # SIMULATION START - Program with return type: int
-# ========================================
-
 Step 1: pushq %rbp                               # Save old frame pointer
 Step 2: movq %rsp, %rbp                          # Set new frame pointer
 Step 3: subq $16, %rsp                           # Allocate 16 bytes for 2 variable(s)
@@ -68,10 +60,7 @@ Step 16: # Return statement                       # Return value = 100
 Step 17: movq %rbp, %rsp                          # Restore stack pointer
 Step 18: popq %rbp                                # Restore frame pointer
 Step 19: ret                                      # Return with value 100
-
-# ========================================
 #           FINAL STATE
-# ========================================
 # Registers:
 #   rax = 100
 #   rbx = 5
@@ -82,7 +71,5 @@ Step 19: ret                                      # Return with value 100
 #   x = 20
 #   y = 5
 #
-# ========================================
 #   FINAL RESULT (return value): 100
-# ========================================
 
