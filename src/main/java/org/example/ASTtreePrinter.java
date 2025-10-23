@@ -17,19 +17,19 @@ public class ASTtreePrinter implements ASTVisitor {
     }
     
     public String printTree(ProgramNode program) {
-        output.append("═══════════════════════════════════════════════\n");
+ 
         output.append("  ABSTRACT SYNTAX TREE (AST) WITH VALUES\n");
-        output.append("═══════════════════════════════════════════════\n\n");
+     
         
         program.accept(this);
         
-        output.append("\n═══════════════════════════════════════════════\n");
+   
         output.append("  SYMBOL TABLE (Final Values)\n");
-        output.append("═══════════════════════════════════════════════\n");
+ 
         for (Map.Entry<String, Integer> entry : variables.entrySet()) {
             output.append("  ").append(entry.getKey()).append(" = ").append(entry.getValue()).append("\n");
         }
-        output.append("═══════════════════════════════════════════════\n");
+      
         
         return output.toString();
     }
