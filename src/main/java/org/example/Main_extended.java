@@ -61,9 +61,9 @@ public class Main_extended {
                 }
             }
 
-            System.out.println("===========================================");
+      
             System.out.println("Iniciando compilación de: " + inputFile);
-            System.out.println("===========================================");
+        
 
             // Verificar que el archivo existe
             File file = new File(inputFile);
@@ -130,7 +130,7 @@ public class Main_extended {
                             if (interpretResult != null) {
                                 System.out.println("Valor de retorno del programa: " + interpretResult);
                                 System.out.println("===========================================");
-                                System.out.println("==> RESULTADO FINAL: " + interpretResult + " <==");
+                                System.out.println("RESULTADO FINAL: " + interpretResult + " ");
                                 System.out.println("===========================================");
                             }
                         } catch (Exception e) {
@@ -145,14 +145,14 @@ public class Main_extended {
                         try {
                             X86AssemblyGenerator generator = new X86AssemblyGenerator();
                             String assemblyCode = generator.generateCode(program);
-                            System.out.println("✓ Código Assembly generado:\n");
+                            System.out.println("Código Assembly generado:\n");
                             System.out.println(assemblyCode);
                             
                             // Opcional: guardar en archivo
                             String outputFile = inputFile.replace(".txt", ".s");
                             try (PrintWriter writer = new PrintWriter(outputFile)) {
                                 writer.println(assemblyCode);
-                                System.out.println("\n✓ Código guardado en: " + outputFile);
+                                System.out.println("\nCódigo guardado en: " + outputFile);
                             } catch (IOException e) {
                                 System.err.println("No se pudo guardar el archivo .s: " + e.getMessage());
                             }
@@ -169,19 +169,19 @@ public class Main_extended {
                 System.out.println("Parsing completado (resultado null)");
             }
 
-            System.out.println("\n===========================================");
+           
             System.out.println("Compilación completada sin errores");
-            System.out.println("===========================================");
+           
 
         } catch (FileNotFoundException e) {
-            System.err.println("===========================================");
+       
             System.err.println("Error: No se pudo encontrar el archivo: " + args[0]);
-            System.err.println("===========================================");
+         
             System.exit(1);
         } catch (Exception e) {
-            System.err.println("===========================================");
+        
             System.err.println("Compilación falló con error:");
-            System.err.println("===========================================");
+           
             e.printStackTrace();
             System.exit(1);
         }
