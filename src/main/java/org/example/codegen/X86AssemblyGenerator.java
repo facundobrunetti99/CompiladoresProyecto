@@ -68,7 +68,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
     @Override
     public void visit(ProgramNode node) {
         this.returnType = node.getReturnType();
-        simulation.append("# SIMULATION START - Program with return type: ").append(returnType).append("\n");
+        simulation.append("Inicio de simulacion ").append(returnType).append("\n");
         
         node.getMainFunction().accept(this);
     }
@@ -140,8 +140,8 @@ public class X86AssemblyGenerator implements ASTVisitor {
             node.getExpression().accept(this);
             long returnValue = getRegister("rax");
             
-            addSimulationStep("# Return statement", "Return value = " + returnValue);
-            simulation.append("         >> RETURN VALUE: ").append(returnValue).append("\n\n");
+            addSimulationStep("Return statement", "Return value = " + returnValue);
+            simulation.append("       RETURN VALUE: ").append(returnValue).append("\n\n");
         } else {
             code.append("    movq $0, %rax\n");
             updateRegister("rax", 0);
@@ -275,27 +275,27 @@ public class X86AssemblyGenerator implements ASTVisitor {
         StringBuilder trace = new StringBuilder();
         
     
-        trace.append("#     EXECUTION TRACE & SIMULATION\n");
+        trace.append("     EXECUTION TRACE & SIMULATION\n");
         
         
         trace.append(simulation.toString());
         
        
-        trace.append("#           FINAL STATE\n");
+        trace.append("          FINAL STATE\n");
         
-        trace.append("# Registers:\n");
-        trace.append("#   rax = ").append(getRegister("rax")).append("\n");
-        trace.append("#   rbx = ").append(getRegister("rbx")).append("\n");
-        trace.append("#   rcx = ").append(getRegister("rcx")).append("\n");
-        trace.append("#   rdx = ").append(getRegister("rdx")).append("\n");
-        trace.append("#\n# Variables:\n");
+        trace.append("Registers:\n");
+        trace.append("  rax = ").append(getRegister("rax")).append("\n");
+        trace.append("  rbx = ").append(getRegister("rbx")).append("\n");
+        trace.append("  rcx = ").append(getRegister("rcx")).append("\n");
+        trace.append("  rdx = ").append(getRegister("rdx")).append("\n");
+        trace.append("\n Variables:\n");
         
         for (Map.Entry<String, Integer> entry : simulatedMemory.entrySet()) {
-            trace.append("#   ").append(entry.getKey()).append(" = ").append(entry.getValue()).append("\n");
+            trace.append("   ").append(entry.getKey()).append(" = ").append(entry.getValue()).append("\n");
         }
         
-        trace.append("#\n");
-        trace.append("#   FINAL RESULT (return value): ").append(getRegister("rax")).append("\n");
+        trace.append("\n");
+        trace.append("  FINAL RESULT (return value): ").append(getRegister("rax")).append("\n");
         
         return trace.toString();
     }
