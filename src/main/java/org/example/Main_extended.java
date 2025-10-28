@@ -1,21 +1,18 @@
 package org.example;
+
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.File;
+
 import org.example.ast.ProgramNode;
 import org.example.codegen.X86AssemblyGenerator;
 import org.example.semantic.symboltable.SemanticAnalyzer;
 import org.example.semantic.symboltable.SymbolTable;
+
 import java_cup.runtime.Symbol;
-import org.example.Lexer;
-import org.example.parser;
-import org.example.sym;
-import org.example.ASTtreePrinter;
-
-
 
 public class Main_extended {
 

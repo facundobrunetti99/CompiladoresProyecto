@@ -1,10 +1,11 @@
 package org.example.semantic.symboltable;
 
 /**
- * Representa una entrada individual en la tabla de símbolos.
- * Almacena toda la información necesaria sobre un símbolo (variable, función, etc.)
+ * Representa una entrada individual en la tabla de símbolos. Almacena toda la
+ * información necesaria sobre un símbolo (variable, función, etc.)
  */
 public class SymbolEntry {
+
     private String name;           // Nombre del símbolo
     private String type;           // Tipo (int, bool, void, etc.)
     private Object value;          // Valor actual (para interpretación)
@@ -52,17 +53,49 @@ public class SymbolEntry {
     }
 
     // Getters
-    public String getName() { return name; }
-    public String getType() { return type; }
-    public Object getValue() { return value; }
-    public boolean isInitialized() { return initialized; }
-    public int getLine() { return line; }
-    public int getColumn() { return column; }
-    public String getAddress() { return address; }
-    public int getSize() { return size; }
-    public int getStackOffset() { return stackOffset; }
-    public boolean isGlobal() { return isGlobal; }
-    public boolean isParameter() { return isParameter; }
+    public String getName() {
+        return name;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public Object getValue() {
+        return value;
+    }
+
+    public boolean isInitialized() {
+        return initialized;
+    }
+
+    public int getLine() {
+        return line;
+    }
+
+    public int getColumn() {
+        return column;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public int getStackOffset() {
+        return stackOffset;
+    }
+
+    public boolean isGlobal() {
+        return isGlobal;
+    }
+
+    public boolean isParameter() {
+        return isParameter;
+    }
 
     // Setters
     public void setValue(Object value) {

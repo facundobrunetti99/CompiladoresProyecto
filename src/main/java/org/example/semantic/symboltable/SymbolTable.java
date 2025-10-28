@@ -1,12 +1,12 @@
 package org.example.semantic.symboltable;
-import org.example.semantic.symboltable.Scope;
 
 /**
- * Tabla de símbolos principal que maneja múltiples scopes anidados.
- * Proporciona operaciones para declarar, buscar y gestionar símbolos
- * a través de diferentes niveles de scope.
+ * Tabla de símbolos principal que maneja múltiples scopes anidados. Proporciona
+ * operaciones para declarar, buscar y gestionar símbolos a través de diferentes
+ * niveles de scope.
  */
 public class SymbolTable {
+
     private Scope globalScope;
     private Scope currentScope;
     private int scopeCounter;
@@ -20,7 +20,6 @@ public class SymbolTable {
     }
 
     // ==================== GESTIÓN DE SCOPES ====================
-
     /**
      * Entra a un nuevo scope con el nombre especificado
      */
@@ -41,7 +40,6 @@ public class SymbolTable {
     }
 
     // ==================== DECLARACIÓN DE SÍMBOLOS ====================
-
     /**
      * Declara una variable en el scope actual sin valor inicial
      */
@@ -50,7 +48,8 @@ public class SymbolTable {
     }
 
     /**
-     * Declara una variable en el scope actual con información de línea y columna
+     * Declara una variable en el scope actual con información de línea y
+     * columna
      */
     public boolean declare(String name, String type, int line, int column) {
         return currentScope.declare(name, type, line, column);
@@ -85,8 +84,8 @@ public class SymbolTable {
      * Declara un símbolo con información completa incluyendo valor inicial
      */
     public boolean declareWithAddress(String name, String type, Object value,
-                                      String address, int size, boolean isGlobal,
-                                      int line, int column) {
+            String address, int size, boolean isGlobal,
+            int line, int column) {
         if (!currentScope.declare(name, type, value, line, column)) {
             return false;
         }
@@ -102,9 +101,9 @@ public class SymbolTable {
     }
 
     // ==================== BÚSQUEDA DE SÍMBOLOS ====================
-
     /**
-     * Busca un símbolo en el scope actual y en los scopes padre (búsqueda jerárquica)
+     * Busca un símbolo en el scope actual y en los scopes padre (búsqueda
+     * jerárquica)
      */
     public SymbolEntry lookup(String name) {
         Scope scope = currentScope;
@@ -140,7 +139,6 @@ public class SymbolTable {
     }
 
     // ==================== OPERACIONES DE VARIABLES ====================
-
     /**
      * Asigna un valor a una variable existente
      */
@@ -178,7 +176,6 @@ public class SymbolTable {
     }
 
     // ==================== GESTIÓN DE STACK PARA CODEGEN ====================
-
     /**
      * Asigna espacio en el stack y retorna el nuevo offset
      */
@@ -202,7 +199,6 @@ public class SymbolTable {
     }
 
     // ==================== GETTERS ====================
-
     public Scope getCurrentScope() {
         return currentScope;
     }
@@ -216,7 +212,6 @@ public class SymbolTable {
     }
 
     // ==================== UTILIDADES ====================
-
     /**
      * Imprime la tabla de símbolos completa
      */
