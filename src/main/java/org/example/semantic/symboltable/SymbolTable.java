@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 package org.example.semantic.symboltable;
+=======
+ package org.example.semantic.symboltable;
+import org.example.semantic.symboltable.Scope;
+
+>>>>>>> 5a3cf14146a9773d1c8fea2430dd28420125879d
 
 /**
  * Tabla de símbolos principal que maneja múltiples scopes anidados. Proporciona
@@ -19,10 +25,15 @@ public class SymbolTable {
         this.currentStackOffset = 0;
     }
 
+    <<<<<<< HEAD
     // ==================== GESTIÓN DE SCOPES ====================
-    /**
-     * Entra a un nuevo scope con el nombre especificado
-     */
+=======
+    // GESTIÓN DE SCOPES 
+
+>>>>>>> 5a3cf14146a9773d1c8fea2430dd28420125879d /**
+             * Entra a un nuevo scope con el nombre especificado
+             */
+
     public void enterScope(String scopeName) {
         String fullName = scopeName + "_" + (++scopeCounter);
         currentScope = new Scope(fullName, currentScope);
@@ -39,10 +50,15 @@ public class SymbolTable {
         return true;
     }
 
+    <<<<<<< HEAD
     // ==================== DECLARACIÓN DE SÍMBOLOS ====================
-    /**
-     * Declara una variable en el scope actual sin valor inicial
-     */
+=======
+    // DECLARACIÓN DE SÍMBOLOS
+
+>>>>>>> 5a3cf14146a9773d1c8fea2430dd28420125879d /**
+             * Declara una variable en el scope actual sin valor inicial
+             */
+
     public boolean declare(String name, String type) {
         return currentScope.declare(name, type, -1, -1);
     }
@@ -100,11 +116,16 @@ public class SymbolTable {
         return false;
     }
 
+    <<<<<<< HEAD
     // ==================== BÚSQUEDA DE SÍMBOLOS ====================
-    /**
-     * Busca un símbolo en el scope actual y en los scopes padre (búsqueda
-     * jerárquica)
-     */
+=======
+    //BÚSQUEDA DE SÍMBOLOS
+
+>>>>>>> 5a3cf14146a9773d1c8fea2430dd28420125879d /**
+             * Busca un símbolo en el scope actual y en los scopes padre
+             * (búsqueda jerárquica)
+             */
+
     public SymbolEntry lookup(String name) {
         Scope scope = currentScope;
         while (scope != null) {
@@ -138,10 +159,15 @@ public class SymbolTable {
         return lookupLocal(name) != null;
     }
 
+    <<<<<<< HEAD
     // ==================== OPERACIONES DE VARIABLES ====================
-    /**
-     * Asigna un valor a una variable existente
-     */
+=======
+    //OPERACIONES DE VARIABLES
+
+>>>>>>> 5a3cf14146a9773d1c8fea2430dd28420125879d /**
+             * Asigna un valor a una variable existente
+             */
+
     public boolean assign(String name, Object value) {
         SymbolEntry entry = lookup(name);
         if (entry != null) {
@@ -175,10 +201,15 @@ public class SymbolTable {
         return entry != null && entry.isInitialized();
     }
 
+    <<<<<<< HEAD
     // ==================== GESTIÓN DE STACK PARA CODEGEN ====================
-    /**
-     * Asigna espacio en el stack y retorna el nuevo offset
-     */
+=======
+    //GESTIÓN DE STACK PARA CODEGEN
+
+>>>>>>> 5a3cf14146a9773d1c8fea2430dd28420125879d /**
+             * Asigna espacio en el stack y retorna el nuevo offset
+             */
+
     public int allocateStackSpace(int size) {
         currentStackOffset += size;
         return currentStackOffset;
@@ -198,7 +229,12 @@ public class SymbolTable {
         return currentStackOffset;
     }
 
+    <<<<<<< HEAD
     // ==================== GETTERS ====================
+=======
+    //GETTERS
+>>>>>>> 5a3cf14146a9773d1c8fea2430dd28420125879d
+
     public Scope getCurrentScope() {
         return currentScope;
     }
@@ -211,10 +247,15 @@ public class SymbolTable {
         return currentScope.getLevel();
     }
 
+    <<<<<<< HEAD
     // ==================== UTILIDADES ====================
-    /**
-     * Imprime la tabla de símbolos completa
-     */
+=======
+    //UTILIDADES
+
+>>>>>>> 5a3cf14146a9773d1c8fea2430dd28420125879d /**
+             * Imprime la tabla de símbolos completa
+             */
+
     public void printSymbolTable() {
         System.out.println("\n" + "=".repeat(70));
         System.out.println("TABLA DE SÍMBOLOS");
