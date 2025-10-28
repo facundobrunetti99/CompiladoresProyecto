@@ -204,26 +204,22 @@ public class X86AssemblyGenerator implements ASTVisitor {
                 
             case "/":
                 if (rightValue == 0) {
-                    throw new RuntimeException("Division by zero");
-                }
-                
-                // División usando loop (cambios porque no funcionaba con el emuladorweb)
-                String divLabel = generateLabel();
-                
-                code.append("    movq $0, %rcx\n");
-                code.append(divLabel).append("_loop:\n");
-                code.append("    cmpq %rbx, %rax\n");
-                code.append("    jl ").append(divLabel).append("_end\n");
-                code.append("    subq %rbx, %rax\n");
-                code.append("    addq $1, %rcx\n");
-                code.append("    jmp ").append(divLabel).append("_loop\n");
-                code.append(divLabel).append("_end:\n");
-                code.append("    movq %rcx, %rax\n");
-                
-                result = leftValue / rightValue;
-                operation = leftValue + " / " + rightValue + " = " + result;
-                addSimulationStep("Division loop", operation);
-                break;
+                 throw new RuntimeException("Division by zero");
+             }
+
+               // División usando idiv (x86-64)
+               code.append("    movq %rax, %rdi\n");   // guardar dividendo temporalmente
+               code.append("    movq %rbx, %rsi\n");   // guardar divisor temporalmente
+               code.append("    movq %rdi, %rax\n");   // mover dividendo a RAX
+               code.append("    cqto\n");              // extender signo a RDX:RAX
+               code.append("    idivq %rsi\n");        // dividir RDX:RAX por RSI
+               // resultado (cociente) queda en RAX, resto en RDX
+
+               result = leftValue / rightValue;
+              operation = leftValue + " / " + rightValue + " = " + result;
+             addSimulationStep("Division idiv", operation);
+             break;
+
         }
         
         updateRegister("rax", result);
