@@ -1,4 +1,4 @@
-package org.example.semantic.symboltable;
+ package org.example.semantic.symboltable;
 import org.example.semantic.symboltable.Scope;
 
 /**
@@ -19,7 +19,7 @@ public class SymbolTable {
         this.currentStackOffset = 0;
     }
 
-    // ==================== GESTIÓN DE SCOPES ====================
+    // GESTIÓN DE SCOPES 
 
     /**
      * Entra a un nuevo scope con el nombre especificado
@@ -40,7 +40,7 @@ public class SymbolTable {
         return true;
     }
 
-    // ==================== DECLARACIÓN DE SÍMBOLOS ====================
+    // DECLARACIÓN DE SÍMBOLOS
 
     /**
      * Declara una variable en el scope actual sin valor inicial
@@ -101,7 +101,7 @@ public class SymbolTable {
         return false;
     }
 
-    // ==================== BÚSQUEDA DE SÍMBOLOS ====================
+    //BÚSQUEDA DE SÍMBOLOS
 
     /**
      * Busca un símbolo en el scope actual y en los scopes padre (búsqueda jerárquica)
@@ -139,7 +139,7 @@ public class SymbolTable {
         return lookupLocal(name) != null;
     }
 
-    // ==================== OPERACIONES DE VARIABLES ====================
+    //OPERACIONES DE VARIABLES
 
     /**
      * Asigna un valor a una variable existente
@@ -177,7 +177,7 @@ public class SymbolTable {
         return entry != null && entry.isInitialized();
     }
 
-    // ==================== GESTIÓN DE STACK PARA CODEGEN ====================
+    //GESTIÓN DE STACK PARA CODEGEN
 
     /**
      * Asigna espacio en el stack y retorna el nuevo offset
@@ -201,8 +201,7 @@ public class SymbolTable {
         return currentStackOffset;
     }
 
-    // ==================== GETTERS ====================
-
+    //GETTERS
     public Scope getCurrentScope() {
         return currentScope;
     }
@@ -215,7 +214,7 @@ public class SymbolTable {
         return currentScope.getLevel();
     }
 
-    // ==================== UTILIDADES ====================
+    //UTILIDADES
 
     /**
      * Imprime la tabla de símbolos completa
