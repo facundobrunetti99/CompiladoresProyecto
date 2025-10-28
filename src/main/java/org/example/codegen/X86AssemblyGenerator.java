@@ -1,30 +1,45 @@
 package org.example.codegen;
 
-import org.example.ast.*;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.example.ast.ASTVisitor;
+import org.example.ast.AssignmentNode;
+import org.example.ast.BinaryOpNode;
+import org.example.ast.BooleanNode;
+import org.example.ast.ComparisonNode;
+import org.example.ast.DeclarationNode;
+import org.example.ast.IfNode;
+import org.example.ast.MainFunctionNode;
+import org.example.ast.NumberNode;
+import org.example.ast.ProgramNode;
+import org.example.ast.ReturnNode;
+import org.example.ast.StatementNode;
+import org.example.ast.VariableDeclarationNode;
+import org.example.ast.VariableNode;
+import org.example.ast.WhileNode;
+import org.example.semantic.symboltable.SymbolTable;
 
 /**
- * Generador de Assembly x86-64 limpio y minimalista
- * Estilo similar a ejemplos educativos (como fibonacci)
+ * Generador de Assembly x86-64 con soporte para estructuras de control
  */
 public class X86AssemblyGenerator implements ASTVisitor {
 
     private StringBuilder code;
     private StringBuilder simulation;
-    private Map<String, Integer> variables;
-    private Map<String, Integer> simulatedMemory;
+    private SymbolTable symbolTable;
+    private Map<String, Integer> localVariables;
     private Map<String, Long> registers;
     private int stackOffset;
     private int labelCounter;
     private String returnType;
     private int stepCounter;
-    private boolean hasReturn = false;
 
-    public X86AssemblyGenerator() {
+    public X86AssemblyGenerator(SymbolTable symbolTable) {
         this.code = new StringBuilder();
         this.simulation = new StringBuilder();
-        this.variables = new HashMap<>();
-        this.simulatedMemory = new HashMap<>();
+        this.symbolTable = symbolTable;
+        this.localVariables = new HashMap<>();
         this.registers = new HashMap<>();
         this.stackOffset = 0;
         this.labelCounter = 0;
@@ -41,17 +56,13 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
     public String generateCode(ProgramNode program) {
         program.accept(this);
-
         StringBuilder output = new StringBuilder();
-        output.append("# ========================================\n");
-        output.append("# EXECUTABLE x86-64 Assembly Code\n");
-        output.append("# ========================================\n\n");
+        output.append("# x86-64 Assembly Code con estructuras de control\n");
         output.append(".section .text\n");
         output.append(".global main\n\n");
         output.append(code.toString());
         output.append("\n");
         output.append(generateSimulationTrace());
-        
         return output.toString();
     }
 
@@ -71,9 +82,9 @@ public class X86AssemblyGenerator implements ASTVisitor {
     @Override
     public void visit(ProgramNode node) {
         this.returnType = node.getReturnType();
-        simulation.append("# SIMULATION START - Program with return type: ").append(returnType).append("\n");
-        simulation.append("# ========================================\n\n");
-        
+        simulation.append("# SIMULACIÓN - Programa con tipo de retorno: ").append(returnType).append("\n");
+        simulation.append("# " + "=".repeat(60) + "\n\n");
+
         node.getMainFunction().accept(this);
     }
 
@@ -82,17 +93,16 @@ public class X86AssemblyGenerator implements ASTVisitor {
         code.append("main:\n");
         code.append("    pushq %rbp\n");
         code.append("    movq %rsp, %rbp\n");
-        
-        addSimulationStep("pushq %rbp", "Save old frame pointer");
-        addSimulationStep("movq %rsp, %rbp", "Set new frame pointer");
+        addSimulationStep("pushq %rbp", "Guardar frame pointer anterior");
+        addSimulationStep("movq %rsp, %rbp", "Establecer nuevo frame pointer");
 
         int localVarCount = node.getDeclarations().size();
-        
+
         if (localVarCount > 0) {
             int stackSpace = ((localVarCount * 8) + 15) & ~15;
             code.append("    subq $").append(stackSpace).append(", %rsp\n\n");
-            addSimulationStep("subq $" + stackSpace + ", %rsp", 
-                "Allocate " + stackSpace + " bytes for " + localVarCount + " variable(s)");
+            addSimulationStep("subq $" + stackSpace + ", %rsp",
+                    "Reservar " + stackSpace + " bytes para " + localVarCount + " variable(s)");
         }
 
         for (DeclarationNode decl : node.getDeclarations()) {
@@ -102,88 +112,229 @@ public class X86AssemblyGenerator implements ASTVisitor {
         for (StatementNode stmt : node.getStatements()) {
             stmt.accept(this);
         }
+
+        // Epílogo si no hubo return explícito
+        code.append("\n    movq %rbp, %rsp\n");
+        code.append("    popq %rbp\n");
+        code.append("    ret\n");
     }
 
     @Override
     public void visit(VariableDeclarationNode node) {
         stackOffset += 8;
-        variables.put(node.getIdentifier(), stackOffset);
-        simulatedMemory.put(node.getIdentifier(), 0);
+        localVariables.put(node.getIdentifier(), stackOffset);
 
         code.append("    movq $0, -").append(stackOffset).append("(%rbp)\n");
-        
-        addSimulationStep("movq $0, -" + stackOffset + "(%rbp)", 
-            "Initialize variable '" + node.getIdentifier() + "' = 0");
+
+        addSimulationStep("movq $0, -" + stackOffset + "(%rbp)",
+                "Inicializar variable '" + node.getIdentifier() + "' = 0");
     }
 
     @Override
     public void visit(AssignmentNode node) {
         node.getExpression().accept(this);
 
-        Integer offset = variables.get(node.getIdentifier());
+        Integer offset = localVariables.get(node.getIdentifier());
         if (offset == null) {
-            throw new RuntimeException("Variable not found: " + node.getIdentifier());
+            throw new RuntimeException("Variable no encontrada: " + node.getIdentifier());
         }
 
         code.append("    movq %rax, -").append(offset).append("(%rbp)\n");
-        
+
         long value = getRegister("rax");
-        simulatedMemory.put(node.getIdentifier(), (int)value);
-        
-        addSimulationStep("movq %rax, -" + offset + "(%rbp)", 
-            "Store " + value + " in variable '" + node.getIdentifier() + "'");
-        
+
+        addSimulationStep("movq %rax, -" + offset + "(%rbp)",
+                "Almacenar " + value + " en variable '" + node.getIdentifier() + "'");
+
         simulation.append("         >> ").append(node.getIdentifier()).append(" = ").append(value).append("\n\n");
     }
 
     @Override
+    public void visit(IfNode node) {
+        String elseLabel = generateLabel();
+        String endLabel = generateLabel();
+
+        simulation.append("# --- IF STATEMENT ---\n");
+
+        // Evaluar condición
+        node.getCondition().accept(this);
+
+        // Si es false (rax == 0), saltar a else o end
+        code.append("    cmpq $0, %rax\n");
+        if (node.hasElse()) {
+            code.append("    je ").append(elseLabel).append("\n");
+            addSimulationStep("je " + elseLabel, "Saltar a ELSE si condición es falsa");
+        } else {
+            code.append("    je ").append(endLabel).append("\n");
+            addSimulationStep("je " + endLabel, "Saltar al final si condición es falsa");
+        }
+
+        // Bloque THEN
+        simulation.append("# --- THEN BLOCK ---\n");
+        for (StatementNode stmt : node.getThenBlock()) {
+            stmt.accept(this);
+        }
+
+        if (node.hasElse()) {
+            code.append("    jmp ").append(endLabel).append("\n");
+            addSimulationStep("jmp " + endLabel, "Saltar al final (skip else)");
+
+            // Bloque ELSE
+            code.append(elseLabel).append(":\n");
+            simulation.append("# --- ELSE BLOCK ---\n");
+            for (StatementNode stmt : node.getElseBlock()) {
+                stmt.accept(this);
+            }
+        }
+
+        code.append(endLabel).append(":\n");
+        simulation.append("# --- END IF ---\n\n");
+    }
+
+    @Override
+    public void visit(WhileNode node) {
+        String loopLabel = generateLabel();
+        String endLabel = generateLabel();
+
+        simulation.append("# --- WHILE LOOP ---\n");
+
+        code.append(loopLabel).append(":\n");
+
+        // Evaluar condición
+        node.getCondition().accept(this);
+
+        code.append("    cmpq $0, %rax\n");
+        code.append("    je ").append(endLabel).append("\n");
+        addSimulationStep("je " + endLabel, "Salir del loop si condición es falsa");
+
+        // Cuerpo del loop
+        for (StatementNode stmt : node.getBody()) {
+            stmt.accept(this);
+        }
+
+        code.append("    jmp ").append(loopLabel).append("\n");
+        addSimulationStep("jmp " + loopLabel, "Volver al inicio del loop");
+
+        code.append(endLabel).append(":\n");
+        simulation.append("# --- END WHILE ---\n\n");
+    }
+
+    @Override
+    public void visit(ComparisonNode node) {
+        node.getLeft().accept(this);
+        long leftValue = getRegister("rax");
+
+        code.append("    pushq %rax\n");
+        addSimulationStep("pushq %rax", "Guardar operando izquierdo (" + leftValue + ")");
+
+        node.getRight().accept(this);
+        long rightValue = getRegister("rax");
+
+        code.append("    movq %rax, %rbx\n");
+        code.append("    popq %rax\n");
+
+        updateRegister("rbx", rightValue);
+        updateRegister("rax", leftValue);
+
+        addSimulationStep("movq %rax, %rbx", "Operando derecho a rbx (" + rightValue + ")");
+        addSimulationStep("popq %rax", "Restaurar operando izquierdo (" + leftValue + ")");
+
+        // Comparar
+        code.append("    cmpq %rbx, %rax\n");
+
+        long result = 0;
+        String operation = "";
+
+        switch (node.getOperator()) {
+            case "==":
+                code.append("    sete %al\n");
+                code.append("    movzbq %al, %rax\n");
+                result = (leftValue == rightValue) ? 1 : 0;
+                operation = leftValue + " == " + rightValue + " → " + result;
+                break;
+
+            case "!=":
+                code.append("    setne %al\n");
+                code.append("    movzbq %al, %rax\n");
+                result = (leftValue != rightValue) ? 1 : 0;
+                operation = leftValue + " != " + rightValue + " → " + result;
+                break;
+
+            case "<":
+                code.append("    setl %al\n");
+                code.append("    movzbq %al, %rax\n");
+                result = (leftValue < rightValue) ? 1 : 0;
+                operation = leftValue + " < " + rightValue + " → " + result;
+                break;
+
+            case ">":
+                code.append("    setg %al\n");
+                code.append("    movzbq %al, %rax\n");
+                result = (leftValue > rightValue) ? 1 : 0;
+                operation = leftValue + " > " + rightValue + " → " + result;
+                break;
+
+            case "<=":
+                code.append("    setle %al\n");
+                code.append("    movzbq %al, %rax\n");
+                result = (leftValue <= rightValue) ? 1 : 0;
+                operation = leftValue + " <= " + rightValue + " → " + result;
+                break;
+
+            case ">=":
+                code.append("    setge %al\n");
+                code.append("    movzbq %al, %rax\n");
+                result = (leftValue >= rightValue) ? 1 : 0;
+                operation = leftValue + " >= " + rightValue + " → " + result;
+                break;
+        }
+
+        updateRegister("rax", result);
+        addSimulationStep("Comparación", operation);
+        simulation.append("         >> rax = ").append(result).append("\n\n");
+    }
+
+    @Override
     public void visit(ReturnNode node) {
-        hasReturn = true;
-        
         if (node.hasExpression()) {
             node.getExpression().accept(this);
             long returnValue = getRegister("rax");
-            
-            addSimulationStep("# Return statement", "Return value = " + returnValue);
+
+            addSimulationStep("# Return statement", "Valor de retorno = " + returnValue);
             simulation.append("         >> RETURN VALUE: ").append(returnValue).append("\n\n");
         } else {
             code.append("    movq $0, %rax\n");
             updateRegister("rax", 0);
         }
 
-        // Epílogo limpio
         code.append("    movq %rbp, %rsp\n");
         code.append("    popq %rbp\n");
         code.append("    ret\n");
-        
-        addSimulationStep("movq %rbp, %rsp", "Restore stack pointer");
-        addSimulationStep("popq %rbp", "Restore frame pointer");
-        addSimulationStep("ret", "Return with value " + getRegister("rax"));
     }
 
     @Override
     public void visit(BinaryOpNode node) {
         node.getLeft().accept(this);
         long leftValue = getRegister("rax");
-        
+
         code.append("    pushq %rax\n");
-        addSimulationStep("pushq %rax", "Save left operand (" + leftValue + ")");
+        addSimulationStep("pushq %rax", "Guardar operando izquierdo (" + leftValue + ")");
 
         node.getRight().accept(this);
         long rightValue = getRegister("rax");
-        
+
         code.append("    movq %rax, %rbx\n");
         code.append("    popq %rax\n");
-        
+
         updateRegister("rbx", rightValue);
         updateRegister("rax", leftValue);
-        
-        addSimulationStep("movq %rax, %rbx", "Move right operand to rbx (" + rightValue + ")");
-        addSimulationStep("popq %rax", "Restore left operand to rax (" + leftValue + ")");
+
+        addSimulationStep("movq %rax, %rbx", "Mover operando derecho a rbx (" + rightValue + ")");
+        addSimulationStep("popq %rax", "Restaurar operando izquierdo (" + leftValue + ")");
 
         long result = 0;
         String operation = "";
-        
+
         switch (node.getOperator()) {
             case "+":
                 code.append("    addq %rbx, %rax\n");
@@ -191,45 +342,33 @@ public class X86AssemblyGenerator implements ASTVisitor {
                 operation = leftValue + " + " + rightValue + " = " + result;
                 addSimulationStep("addq %rbx, %rax", operation);
                 break;
-                
+
             case "-":
                 code.append("    subq %rbx, %rax\n");
                 result = leftValue - rightValue;
                 operation = leftValue + " - " + rightValue + " = " + result;
                 addSimulationStep("subq %rbx, %rax", operation);
                 break;
-                
+
             case "*":
                 code.append("    imulq %rbx, %rax\n");
                 result = leftValue * rightValue;
                 operation = leftValue + " * " + rightValue + " = " + result;
                 addSimulationStep("imulq %rbx, %rax", operation);
                 break;
-                
+
             case "/":
                 if (rightValue == 0) {
-                    throw new RuntimeException("Division by zero");
+                    throw new RuntimeException("División por cero");
                 }
-                
-                // División usando loop (compatible con emuladores básicos)
-                String divLabel = generateLabel();
-                
-                code.append("    movq $0, %rcx\n");
-                code.append(divLabel).append("_loop:\n");
-                code.append("    cmpq %rbx, %rax\n");
-                code.append("    jl ").append(divLabel).append("_end\n");
-                code.append("    subq %rbx, %rax\n");
-                code.append("    addq $1, %rcx\n");
-                code.append("    jmp ").append(divLabel).append("_loop\n");
-                code.append(divLabel).append("_end:\n");
-                code.append("    movq %rcx, %rax\n");
-                
+                code.append("    cqto\n");
+                code.append("    idivq %rbx\n");
                 result = leftValue / rightValue;
                 operation = leftValue + " / " + rightValue + " = " + result;
-                addSimulationStep("Division loop", operation);
+                addSimulationStep("idivq %rbx", operation);
                 break;
         }
-        
+
         updateRegister("rax", result);
         simulation.append("         >> rax = ").append(result).append("\n\n");
     }
@@ -237,38 +376,34 @@ public class X86AssemblyGenerator implements ASTVisitor {
     @Override
     public void visit(NumberNode node) {
         code.append("    movq $").append(node.getValue()).append(", %rax\n");
-        
+
         updateRegister("rax", node.getValue());
-        addSimulationStep("movq $" + node.getValue() + ", %rax", 
-            "Load constant " + node.getValue() + " into rax");
-        simulation.append("         >> rax = ").append(node.getValue()).append("\n\n");
+        addSimulationStep("movq $" + node.getValue() + ", %rax",
+                "Cargar constante " + node.getValue() + " en rax");
     }
 
     @Override
     public void visit(BooleanNode node) {
         int value = node.getValue() ? 1 : 0;
         code.append("    movq $").append(value).append(", %rax\n");
-        
+
         updateRegister("rax", value);
-        addSimulationStep("movq $" + value + ", %rax", 
-            "Load boolean " + node.getValue() + " (" + value + ") into rax");
+        addSimulationStep("movq $" + value + ", %rax",
+                "Cargar booleano " + node.getValue() + " (" + value + ") en rax");
     }
 
     @Override
     public void visit(VariableNode node) {
-        Integer offset = variables.get(node.getIdentifier());
+        Integer offset = localVariables.get(node.getIdentifier());
         if (offset == null) {
-            throw new RuntimeException("Variable not found: " + node.getIdentifier());
+            throw new RuntimeException("Variable no encontrada: " + node.getIdentifier());
         }
 
         code.append("    movq -").append(offset).append("(%rbp), %rax\n");
-        
-        int value = simulatedMemory.getOrDefault(node.getIdentifier(), 0);
-        updateRegister("rax", value);
-        
-        addSimulationStep("movq -" + offset + "(%rbp), %rax", 
-            "Load variable '" + node.getIdentifier() + "' (" + value + ") into rax");
-        simulation.append("         >> rax = ").append(value).append("\n\n");
+
+        // Simular valor (en una implementación real necesitarías tracking de valores)
+        addSimulationStep("movq -" + offset + "(%rbp), %rax",
+                "Cargar variable '" + node.getIdentifier() + "' en rax");
     }
 
     private String generateLabel() {
@@ -277,32 +412,20 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
     private String generateSimulationTrace() {
         StringBuilder trace = new StringBuilder();
-        
-        trace.append("# ========================================\n");
-        trace.append("#     EXECUTION TRACE & SIMULATION\n");
-        trace.append("# ========================================\n\n");
-        
+        trace.append("#\n# " + "=".repeat(60) + "\n");
+        trace.append("# TRAZA DE EJECUCIÓN\n");
+        trace.append("# " + "=".repeat(60) + "\n");
         trace.append(simulation.toString());
-        
-        trace.append("\n# ========================================\n");
-        trace.append("#           FINAL STATE\n");
-        trace.append("# ========================================\n");
-        trace.append("# Registers:\n");
+        trace.append("# " + "=".repeat(60) + "\n");
+        trace.append("# ESTADO FINAL\n");
+        trace.append("# " + "=".repeat(60) + "\n");
+        trace.append("# Registros:\n");
         trace.append("#   rax = ").append(getRegister("rax")).append("\n");
         trace.append("#   rbx = ").append(getRegister("rbx")).append("\n");
         trace.append("#   rcx = ").append(getRegister("rcx")).append("\n");
         trace.append("#   rdx = ").append(getRegister("rdx")).append("\n");
-        trace.append("#\n# Variables:\n");
-        
-        for (Map.Entry<String, Integer> entry : simulatedMemory.entrySet()) {
-            trace.append("#   ").append(entry.getKey()).append(" = ").append(entry.getValue()).append("\n");
-        }
-        
         trace.append("#\n");
-        trace.append("# ========================================\n");
-        trace.append("#   FINAL RESULT (return value): ").append(getRegister("rax")).append("\n");
-        trace.append("# ========================================\n");
-        
+        trace.append("# RESULTADO FINAL (return value): ").append(getRegister("rax")).append("\n");
         return trace.toString();
     }
 }

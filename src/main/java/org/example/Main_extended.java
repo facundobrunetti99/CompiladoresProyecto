@@ -1,23 +1,33 @@
 package org.example;
-import org.example.ast.*;
-import org.example.codegen.X86AssemblyGenerator;
 
-import org.example.ASTtreePrinter;
-import org.example.Lexer;
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+import org.example.ast.ProgramNode;
+import org.example.codegen.X86AssemblyGenerator;
+import org.example.semantic.symboltable.SemanticAnalyzer;
+import org.example.semantic.symboltable.SymbolTable;
+
+import java_cup.Lexer;
+import java_cup.parser;
+import java_cup.runtime.Symbol;
+import jflex.core.sym;
 
 public class Main_extended {
 
     public static void main(String[] args) {
         try {
-            // Verificar argumentos
             if (args.length == 0) {
                 System.err.println("Uso: java Main_extended <archivo_entrada> [opciones]");
                 System.err.println("Opciones:");
                 System.err.println("  -tokens    : Mostrar tokens");
                 System.err.println("  -parse     : Solo parsing");
-                System.err.println("  -tree      : Mostrar árbol AST en consola");
-                System.err.println("  -interpret : Ejecutar interpretación");
+                System.err.println("  -tree      : Mostrar árbol AST");
+                System.err.println("  -symbols   : Mostrar tabla de símbolos");
                 System.err.println("  -asm       : Generar código Assembly x86-64");
                 System.err.println("  -all       : Hacer todo");
                 System.exit(1);
@@ -27,10 +37,9 @@ public class Main_extended {
             boolean showTokens = false;
             boolean showParsing = false;
             boolean showTree = false;
-            boolean runInterpreter = false;
+            boolean showSymbols = false;
             boolean generateAssembly = false;
 
-            // Procesar opciones
             for (int i = 1; i < args.length; i++) {
                 switch (args[i]) {
                     case "-tokens":
@@ -42,8 +51,8 @@ public class Main_extended {
                     case "-tree":
                         showTree = true;
                         break;
-                    case "-interpret":
-                        runInterpreter = true;
+                    case "-symbols":
+                        showSymbols = true;
                         break;
                     case "-asm":
                         generateAssembly = true;
@@ -52,7 +61,7 @@ public class Main_extended {
                         showTokens = true;
                         showParsing = true;
                         showTree = true;
-                        runInterpreter = true;
+                        showSymbols = true;
                         generateAssembly = true;
                         break;
                     default:
@@ -61,111 +70,135 @@ public class Main_extended {
                 }
             }
 
-            System.out.println("===========================================");
-            System.out.println("Iniciando compilación de: " + inputFile);
-            System.out.println("===========================================");
+            System.out.println("=".repeat(70));
+            System.out.println("COMPILADOR CON TABLA DE SÍMBOLOS Y ESTRUCTURAS DE CONTROL");
+            System.out.println("Archivo: " + inputFile);
+            System.out.println("=".repeat(70));
 
-            // Verificar que el archivo existe
             File file = new File(inputFile);
             if (!file.exists()) {
-                System.err.println("Error: El archivo '" + inputFile + "' no existe.");
+                System.err.println("Error: El archivo '" + inputFile + "' no existe");
                 System.exit(1);
             }
 
-            // Crear el lexer
-            System.out.println("Creando analizador léxico...");
-            FileReader fileReader = new FileReader(inputFile);
+            // Fase 1: ANÁLISIS LÉXICO
+            System.out.println("\n" + "=".repeat(70));
+            System.out.println("FASE 1: ANÁLISIS LÉXICO");
+            System.out.println("=".repeat(70));
+
+            FileReader fileReader = new FileReader(file);
             Lexer lexer = new Lexer(fileReader);
 
             if (showTokens) {
-                System.out.println("\n=== TOKENS ===");
-                System.out.println("(Funcionalidad de tokens pendiente de implementar)");
+                System.out.println("\nTokens encontrados:");
+                System.out.println("-".repeat(70));
+
+                Symbol token;
+                do {
+                    token = lexer.next_token();
+                    if (token.sym != sym.EOF) {
+                        System.out.print(" ");
+                    }
+                } while (token.sym != sym.EOF);
+                System.out.println("\n" + "-".repeat(70));
+
+                // Reiniciar el lexer para el parser
+                fileReader.close();
+                fileReader = new FileReader(file);
+                lexer = new Lexer(fileReader);
             }
 
-            // Crear el parser
-            System.out.println("Creando analizador sintáctico...");
+            // Fase 2: ANÁLISIS SINTÁCTICO
+            System.out.println("\n" + "=".repeat(70));
+            System.out.println("FASE 2: ANÁLISIS SINTÁCTICO");
+            System.out.println("=".repeat(70));
+
             parser p = new parser(lexer);
+            Symbol parseResult = p.parse();
+            ProgramNode ast = (ProgramNode) parseResult.value;
 
             if (showParsing) {
-                System.out.println("\n=== ANÁLISIS SINTÁCTICO ===");
+                System.out.println("\n✓ Parsing completado exitosamente");
+                System.out.println("  AST generado: " + (ast != null ? "OK" : "NULL"));
             }
 
-            // Ejecutar el parsing
-            System.out.println("Ejecutando análisis sintáctico...");
-            Object result = p.parse().value;
-
-            System.out.println("Análisis sintáctico completado exitosamente");
-
-            // Mostrar resultado básico
-            if (result != null) {
-                System.out.println("Resultado del parsing: " + result.getClass().getSimpleName());
-                if (showParsing) {
-                    System.out.println("   Contenido: " + result.toString());
-                }
-
-                // Procesar el AST si es un ProgramNode
-                if (result instanceof ProgramNode) {
-                    ProgramNode program = (ProgramNode) result;
-
-                    // MOSTRAR ÁRBOL AST EN CONSOLA
-                    if (showTree) {
-                        System.out.println("\n=== ÁRBOL SINTÁCTICO ABSTRACTO (AST) ===");
-                        try {
-                            ASTtreePrinter treePrinter = new ASTtreePrinter();
-                            String treeOutput = treePrinter.printTree(program);
-                            System.out.println(treeOutput);
-                        } catch (Exception e) {
-                            System.err.println("Error al mostrar el árbol AST:");
-                            e.printStackTrace();
-                        }
-                    }
-
-                    // Ejecutar interpretación si se solicita
-                
-
-                    // Generar código Assembly x86-64 si se solicita
-                    if (generateAssembly) {
-                        System.out.println("\n=== GENERACIÓN DE CÓDIGO ASSEMBLY x86-64 ===");
-                        try {
-                            X86AssemblyGenerator generator = new X86AssemblyGenerator();
-                            String assemblyCode = generator.generateCode(program);
-                            System.out.println("✓ Código Assembly generado:\n");
-                            System.out.println(assemblyCode);
-                            
-                            // Opcional: guardar en archivo
-                            String outputFile = inputFile.replace(".txt", ".s");
-                            try (PrintWriter writer = new PrintWriter(outputFile)) {
-                                writer.println(assemblyCode);
-                                System.out.println("\n✓ Código guardado en: " + outputFile);
-                            } catch (IOException e) {
-                                System.err.println("No se pudo guardar el archivo .s: " + e.getMessage());
-                            }
-                        } catch (Exception e) {
-                            System.err.println("Error durante la generación de Assembly:");
-                            e.printStackTrace();
-                        }
-                    } 
-                } else {
-                    System.err.println("El resultado del parsing no es un ProgramNode válido");
-                }
-
-            } else {
-                System.out.println("Parsing completado (resultado null)");
+            if (ast == null) {
+                System.err.println("\nError: No se pudo generar el AST");
+                System.exit(1);
             }
 
-            System.out.println("\n===========================================");
-            System.out.println("Compilación completada sin errores");
-            System.out.println("===========================================");
+            // Fase 3: ÁRBOL AST
+            if (showTree) {
+                System.out.println("\n" + "=".repeat(70));
+                System.out.println("FASE 3: ÁRBOL DE SINTAXIS ABSTRACTA (AST)");
+                System.out.println("=".repeat(70));
+
+                ASTtreePrinter treePrinter = new ASTtreePrinter();
+                String treeOutput = treePrinter.printTree(ast);
+                System.out.println(treeOutput);
+            }
+
+            // Fase 4: ANÁLISIS SEMÁNTICO - TABLA DE SÍMBOLOS
+            System.out.println("\n" + "=".repeat(70));
+            System.out.println("FASE 4: ANÁLISIS SEMÁNTICO");
+            System.out.println("=".repeat(70));
+
+            SymbolTable symbolTable = new SymbolTable();
+            SemanticAnalyzer semanticAnalyzer = new SemanticAnalyzer(symbolTable);
+
+            System.out.println("\nEjecutando análisis semántico...");
+            boolean semanticSuccess = semanticAnalyzer.analyze(ast);
+
+            if (!semanticSuccess) {
+                System.err.println("\n✗ Errores semánticos encontrados");
+                System.err.println("La compilación no puede continuar");
+                System.exit(1);
+            }
+
+            System.out.println("✓ Análisis semántico completado exitosamente");
+
+            if (showSymbols) {
+                System.out.println();
+                symbolTable.printSymbolTable();
+                symbolTable.printStatistics();
+            }
+
+            // Fase 5: GENERACIÓN DE CÓDIGO
+            if (generateAssembly) {
+                System.out.println("\n" + "=".repeat(70));
+                System.out.println("FASE 5: GENERACIÓN DE CÓDIGO x86-64");
+                System.out.println("=".repeat(70));
+
+                X86AssemblyGenerator codeGen = new X86AssemblyGenerator(symbolTable);
+                String assemblyCode = codeGen.generateCode(ast);
+
+                System.out.println("\n" + assemblyCode);
+
+                // Guardar en archivo
+                String outputFile = inputFile.replace(".txt", ".s");
+                try (PrintWriter writer = new PrintWriter(new FileWriter(outputFile))) {
+                    writer.println(assemblyCode);
+                    System.out.println("\n✓ Código Assembly guardado en: " + outputFile);
+                } catch (IOException e) {
+                    System.err.println("Error al guardar el archivo: " + e.getMessage());
+                }
+            }
+
+            // Resumen final
+            System.out.println("\n" + "=".repeat(70));
+            System.out.println("COMPILACIÓN EXITOSA");
+            System.out.println("=".repeat(70));
+            System.out.println("Todas las fases completadas correctamente");
+            System.out.println("=".repeat(70));
+
+            fileReader.close();
 
         } catch (FileNotFoundException e) {
-            System.err.println("===========================================");
-            System.err.println("Error: No se pudo encontrar el archivo: " + args[0]);
-            System.err.println("===========================================");
+            System.err.println("Error: Archivo no encontrado - " + e.getMessage());
             System.exit(1);
         } catch (Exception e) {
-            System.err.println("===========================================");
-            System.err.println("Compilación falló con error:");
-            System.err.println("===========================================");
+            System.err.println("\nError durante la compilación:");
+            System.err.println(e.getMessage());
             e.printStackTrace();
             System.exit(1);
         }
