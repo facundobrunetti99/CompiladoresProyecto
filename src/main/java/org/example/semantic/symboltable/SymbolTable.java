@@ -1,12 +1,16 @@
-package org.example.semantic.symboltable;
+
+ package org.example.semantic.symboltable;
 import org.example.semantic.symboltable.Scope;
+import org.example.semantic.symboltable.SymbolEntry;
+import java.util.List;
 
 /**
- * Tabla de símbolos principal que maneja múltiples scopes anidados.
- * Proporciona operaciones para declarar, buscar y gestionar símbolos
- * a través de diferentes niveles de scope.
+ * Tabla de símbolos principal que maneja múltiples scopes anidados. Proporciona
+ * operaciones para declarar, buscar y gestionar símbolos a través de diferentes
+ * niveles de scope.
  */
 public class SymbolTable {
+
     private Scope globalScope;
     private Scope currentScope;
     private int scopeCounter;
@@ -19,11 +23,8 @@ public class SymbolTable {
         this.currentStackOffset = 0;
     }
 
-    // ==================== GESTIÓN DE SCOPES ====================
 
-    /**
-     * Entra a un nuevo scope con el nombre especificado
-     */
+
     public void enterScope(String scopeName) {
         String fullName = scopeName + "_" + (++scopeCounter);
         currentScope = new Scope(fullName, currentScope);
@@ -40,17 +41,15 @@ public class SymbolTable {
         return true;
     }
 
-    // ==================== DECLARACIÓN DE SÍMBOLOS ====================
 
-    /**
-     * Declara una variable en el scope actual sin valor inicial
-     */
+
     public boolean declare(String name, String type) {
         return currentScope.declare(name, type, -1, -1);
     }
 
     /**
-     * Declara una variable en el scope actual con información de línea y columna
+     * Declara una variable en el scope actual con información de línea y
+     * columna
      */
     public boolean declare(String name, String type, int line, int column) {
         return currentScope.declare(name, type, line, column);
@@ -85,8 +84,8 @@ public class SymbolTable {
      * Declara un símbolo con información completa incluyendo valor inicial
      */
     public boolean declareWithAddress(String name, String type, Object value,
-                                      String address, int size, boolean isGlobal,
-                                      int line, int column) {
+            String address, int size, boolean isGlobal,
+            int line, int column) {
         if (!currentScope.declare(name, type, value, line, column)) {
             return false;
         }
@@ -101,11 +100,6 @@ public class SymbolTable {
         return false;
     }
 
-    // ==================== BÚSQUEDA DE SÍMBOLOS ====================
-
-    /**
-     * Busca un símbolo en el scope actual y en los scopes padre (búsqueda jerárquica)
-     */
     public SymbolEntry lookup(String name) {
         Scope scope = currentScope;
         while (scope != null) {
@@ -139,11 +133,7 @@ public class SymbolTable {
         return lookupLocal(name) != null;
     }
 
-    // ==================== OPERACIONES DE VARIABLES ====================
 
-    /**
-     * Asigna un valor a una variable existente
-     */
     public boolean assign(String name, Object value) {
         SymbolEntry entry = lookup(name);
         if (entry != null) {
@@ -177,11 +167,7 @@ public class SymbolTable {
         return entry != null && entry.isInitialized();
     }
 
-    // ==================== GESTIÓN DE STACK PARA CODEGEN ====================
 
-    /**
-     * Asigna espacio en el stack y retorna el nuevo offset
-     */
     public int allocateStackSpace(int size) {
         currentStackOffset += size;
         return currentStackOffset;
@@ -201,7 +187,6 @@ public class SymbolTable {
         return currentStackOffset;
     }
 
-    // ==================== GETTERS ====================
 
     public Scope getCurrentScope() {
         return currentScope;
@@ -215,11 +200,7 @@ public class SymbolTable {
         return currentScope.getLevel();
     }
 
-    // ==================== UTILIDADES ====================
 
-    /**
-     * Imprime la tabla de símbolos completa
-     */
     public void printSymbolTable() {
         System.out.println("\n" + "=".repeat(70));
         System.out.println("TABLA DE SÍMBOLOS");

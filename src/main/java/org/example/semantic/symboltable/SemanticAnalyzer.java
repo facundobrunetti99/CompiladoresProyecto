@@ -1,14 +1,27 @@
 package org.example.semantic.symboltable;
-import org.example.ast.*;
-import org.example.semantic.symboltable.*;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.example.ast.ASTVisitor;
+import org.example.ast.AssignmentNode;
+import org.example.ast.BinaryOpNode;
+import org.example.ast.BooleanNode;
+import org.example.ast.ComparisonNode;
+import org.example.ast.DeclarationNode;
+import org.example.ast.IfNode;
+import org.example.ast.MainFunctionNode;
+import org.example.ast.NumberNode;
+import org.example.ast.ProgramNode;
+import org.example.ast.ReturnNode;
+import org.example.ast.StatementNode;
+import org.example.ast.VariableDeclarationNode;
+import org.example.ast.VariableNode;
+import org.example.ast.WhileNode;
 
 /**
- * Analizador semántico que verifica:
- * - Declaraciones de variables
- * - Uso de variables no declaradas
- * - Redeclaraciones
- * - Tipos compatibles
+ * Analizador semántico que verifica: - Declaraciones de variables - Uso de
+ * variables no declaradas - Redeclaraciones - Tipos compatibles
  */
 public class SemanticAnalyzer implements ASTVisitor {
 

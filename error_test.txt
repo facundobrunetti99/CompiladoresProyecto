@@ -3,11 +3,12 @@ int main() {
     int y;
     int z;
     x = 5;
-    y = 5;
-    if(x>y){
-       z=x*50;
-    }else{
-        z=y*10;
+    z=2;
+    y=0;
+    if(y<2){
+     z=x*50;
+       
+   
     }
-    
+    return z;
 }
