@@ -4,6 +4,10 @@ int main() {
     int z;
     x = 20;
     y = 5;
-    z=40;
-    return (x/y)*z;
+    if(x>y){
+       z=x*50;
+    }else{
+        z=y*10;
+    }
+    
 }

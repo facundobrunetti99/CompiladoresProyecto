@@ -1,8 +1,6 @@
 package org.example.codegen;
-
-import java.util.HashMap;
 import java.util.Map;
-
+import java.util.HashMap;
 import org.example.ast.ASTVisitor;
 import org.example.ast.AssignmentNode;
 import org.example.ast.BinaryOpNode;
@@ -20,30 +18,33 @@ import org.example.ast.VariableNode;
 import org.example.ast.WhileNode;
 import org.example.semantic.symboltable.SymbolTable;
 
-/**
- * Generador de Assembly x86-64 con soporte para estructuras de control
- */
 public class X86AssemblyGenerator implements ASTVisitor {
 
     private StringBuilder code;
     private StringBuilder simulation;
     private SymbolTable symbolTable;
     private Map<String, Integer> localVariables;
+    private Map<String, Long> variableValues;
     private Map<String, Long> registers;
     private int stackOffset;
     private int labelCounter;
     private String returnType;
     private int stepCounter;
+    private boolean executeSimulation;  // Controla si realmente ejecutar o solo generar código
+    private long lastConditionResult;
 
     public X86AssemblyGenerator(SymbolTable symbolTable) {
         this.code = new StringBuilder();
         this.simulation = new StringBuilder();
         this.symbolTable = symbolTable;
         this.localVariables = new HashMap<>();
+        this.variableValues = new HashMap<>();
         this.registers = new HashMap<>();
         this.stackOffset = 0;
         this.labelCounter = 0;
         this.stepCounter = 0;
+        this.executeSimulation = true;
+        this.lastConditionResult = 0;
         initializeRegisters();
     }
 
@@ -67,12 +68,16 @@ public class X86AssemblyGenerator implements ASTVisitor {
     }
 
     private void addSimulationStep(String instruction, String description) {
-        stepCounter++;
-        simulation.append(String.format("Step %d: %-40s # %s\n", stepCounter, instruction, description));
+        if (executeSimulation) {
+            stepCounter++;
+            simulation.append(String.format("Step %d: %-40s # %s\n", stepCounter, instruction, description));
+        }
     }
 
     private void updateRegister(String reg, long value) {
-        registers.put(reg, value);
+        if (executeSimulation) {
+            registers.put(reg, value);
+        }
     }
 
     private long getRegister(String reg) {
@@ -123,6 +128,10 @@ public class X86AssemblyGenerator implements ASTVisitor {
     public void visit(VariableDeclarationNode node) {
         stackOffset += 8;
         localVariables.put(node.getIdentifier(), stackOffset);
+        
+        if (executeSimulation) {
+            variableValues.put(node.getIdentifier(), 0L);
+        }
 
         code.append("    movq $0, -").append(stackOffset).append("(%rbp)\n");
 
@@ -141,12 +150,15 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         code.append("    movq %rax, -").append(offset).append("(%rbp)\n");
 
-        long value = getRegister("rax");
+        if (executeSimulation) {
+            long value = getRegister("rax");
+            variableValues.put(node.getIdentifier(), value);
 
-        addSimulationStep("movq %rax, -" + offset + "(%rbp)",
-                "Almacenar " + value + " en variable '" + node.getIdentifier() + "'");
+            addSimulationStep("movq %rax, -" + offset + "(%rbp)",
+                    "Almacenar " + value + " en variable '" + node.getIdentifier() + "'");
 
-        simulation.append("         >> ").append(node.getIdentifier()).append(" = ").append(value).append("\n\n");
+            simulation.append("         >> ").append(node.getIdentifier()).append(" = ").append(value).append("\n\n");
+        }
     }
 
     @Override
@@ -158,8 +170,9 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         // Evaluar condición
         node.getCondition().accept(this);
+        lastConditionResult = getRegister("rax");
 
-        // Si es false (rax == 0), saltar a else o end
+        // Generar código Assembly
         code.append("    cmpq $0, %rax\n");
         if (node.hasElse()) {
             code.append("    je ").append(elseLabel).append("\n");
@@ -169,21 +182,52 @@ public class X86AssemblyGenerator implements ASTVisitor {
             addSimulationStep("je " + endLabel, "Saltar al final si condición es falsa");
         }
 
-        // Bloque THEN
-        simulation.append("# --- THEN BLOCK ---\n");
-        for (StatementNode stmt : node.getThenBlock()) {
-            stmt.accept(this);
-        }
+        // Guardar estado antes de procesar bloques
+        Map<String, Long> savedVarValues = new HashMap<>(variableValues);
+        Map<String, Long> savedRegisters = new HashMap<>(registers);
 
-        if (node.hasElse()) {
-            code.append("    jmp ").append(endLabel).append("\n");
-            addSimulationStep("jmp " + endLabel, "Saltar al final (skip else)");
-
-            // Bloque ELSE
-            code.append(elseLabel).append(":\n");
-            simulation.append("# --- ELSE BLOCK ---\n");
-            for (StatementNode stmt : node.getElseBlock()) {
+        if (lastConditionResult != 0) {
+            // Condición TRUE - ejecutar THEN en simulación
+            simulation.append("# --- THEN BLOCK (Ejecutado) ---\n");
+            executeSimulation = true;
+            for (StatementNode stmt : node.getThenBlock()) {
                 stmt.accept(this);
+            }
+
+            if (node.hasElse()) {
+                code.append("    jmp ").append(endLabel).append("\n");
+                addSimulationStep("jmp " + endLabel, "Saltar al final (skip else)");
+
+                // Generar código ELSE pero NO ejecutar simulación
+                code.append(elseLabel).append(":\n");
+                simulation.append("# --- ELSE BLOCK (NO ejecutado) ---\n");
+                
+                // Restaurar estado y desactivar ejecución
+                executeSimulation = false;
+                for (StatementNode stmt : node.getElseBlock()) {
+                    stmt.accept(this);
+                }
+                executeSimulation = true;
+            }
+        } else {
+            // Condición FALSE - ejecutar ELSE en simulación
+            simulation.append("# --- THEN BLOCK (NO ejecutado) ---\n");
+            
+            // Generar código THEN pero NO ejecutar simulación
+            executeSimulation = false;
+            for (StatementNode stmt : node.getThenBlock()) {
+                stmt.accept(this);
+            }
+            executeSimulation = true;
+
+            if (node.hasElse()) {
+                code.append("    jmp ").append(endLabel).append("\n");
+                code.append(elseLabel).append(":\n");
+                
+                simulation.append("# --- ELSE BLOCK (Ejecutado) ---\n");
+                for (StatementNode stmt : node.getElseBlock()) {
+                    stmt.accept(this);
+                }
             }
         }
 
@@ -200,23 +244,39 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         code.append(loopLabel).append(":\n");
 
-        // Evaluar condición
+        // Evaluar condición inicial
         node.getCondition().accept(this);
+        lastConditionResult = getRegister("rax");
 
         code.append("    cmpq $0, %rax\n");
         code.append("    je ").append(endLabel).append("\n");
         addSimulationStep("je " + endLabel, "Salir del loop si condición es falsa");
 
-        // Cuerpo del loop
-        for (StatementNode stmt : node.getBody()) {
-            stmt.accept(this);
+        // Simular iteraciones del while
+        int iterationCount = 0;
+        int maxIterations = 1000;
+
+        while (lastConditionResult != 0 && iterationCount < maxIterations) {
+            if (iterationCount > 0) {
+                simulation.append("# --- Iteración " + (iterationCount + 1) + " ---\n");
+            }
+
+            for (StatementNode stmt : node.getBody()) {
+                stmt.accept(this);
+            }
+
+            // Re-evaluar condición
+            node.getCondition().accept(this);
+            lastConditionResult = getRegister("rax");
+
+            iterationCount++;
         }
 
         code.append("    jmp ").append(loopLabel).append("\n");
         addSimulationStep("jmp " + loopLabel, "Volver al inicio del loop");
 
         code.append(endLabel).append(":\n");
-        simulation.append("# --- END WHILE ---\n\n");
+        simulation.append("# --- END WHILE (Total iteraciones: " + iterationCount + ") ---\n\n");
     }
 
     @Override
@@ -239,7 +299,6 @@ public class X86AssemblyGenerator implements ASTVisitor {
         addSimulationStep("movq %rax, %rbx", "Operando derecho a rbx (" + rightValue + ")");
         addSimulationStep("popq %rax", "Restaurar operando izquierdo (" + leftValue + ")");
 
-        // Comparar
         code.append("    cmpq %rbx, %rax\n");
 
         long result = 0;
@@ -250,48 +309,51 @@ public class X86AssemblyGenerator implements ASTVisitor {
                 code.append("    sete %al\n");
                 code.append("    movzbq %al, %rax\n");
                 result = (leftValue == rightValue) ? 1 : 0;
-                operation = leftValue + " == " + rightValue + " → " + result;
+                operation = leftValue + " == " + rightValue + " → " + (result == 1 ? "true" : "false");
                 break;
 
             case "!=":
                 code.append("    setne %al\n");
                 code.append("    movzbq %al, %rax\n");
                 result = (leftValue != rightValue) ? 1 : 0;
-                operation = leftValue + " != " + rightValue + " → " + result;
+                operation = leftValue + " != " + rightValue + " → " + (result == 1 ? "true" : "false");
                 break;
 
             case "<":
                 code.append("    setl %al\n");
                 code.append("    movzbq %al, %rax\n");
                 result = (leftValue < rightValue) ? 1 : 0;
-                operation = leftValue + " < " + rightValue + " → " + result;
+                operation = leftValue + " < " + rightValue + " → " + (result == 1 ? "true" : "false");
                 break;
 
             case ">":
                 code.append("    setg %al\n");
                 code.append("    movzbq %al, %rax\n");
                 result = (leftValue > rightValue) ? 1 : 0;
-                operation = leftValue + " > " + rightValue + " → " + result;
+                operation = leftValue + " > " + rightValue + " → " + (result == 1 ? "true" : "false");
                 break;
 
             case "<=":
                 code.append("    setle %al\n");
                 code.append("    movzbq %al, %rax\n");
                 result = (leftValue <= rightValue) ? 1 : 0;
-                operation = leftValue + " <= " + rightValue + " → " + result;
+                operation = leftValue + " <= " + rightValue + " → " + (result == 1 ? "true" : "false");
                 break;
 
             case ">=":
                 code.append("    setge %al\n");
                 code.append("    movzbq %al, %rax\n");
                 result = (leftValue >= rightValue) ? 1 : 0;
-                operation = leftValue + " >= " + rightValue + " → " + result;
+                operation = leftValue + " >= " + rightValue + " → " + (result == 1 ? "true" : "false");
                 break;
         }
 
         updateRegister("rax", result);
         addSimulationStep("Comparación", operation);
-        simulation.append("         >> rax = ").append(result).append("\n\n");
+        
+        if (executeSimulation) {
+            simulation.append("         >> rax = ").append(result).append("\n\n");
+        }
     }
 
     @Override
@@ -301,7 +363,10 @@ public class X86AssemblyGenerator implements ASTVisitor {
             long returnValue = getRegister("rax");
 
             addSimulationStep("# Return statement", "Valor de retorno = " + returnValue);
-            simulation.append("         >> RETURN VALUE: ").append(returnValue).append("\n\n");
+            
+            if (executeSimulation) {
+                simulation.append("         >> RETURN VALUE: ").append(returnValue).append("\n\n");
+            }
         } else {
             code.append("    movq $0, %rax\n");
             updateRegister("rax", 0);
@@ -370,7 +435,10 @@ public class X86AssemblyGenerator implements ASTVisitor {
         }
 
         updateRegister("rax", result);
-        simulation.append("         >> rax = ").append(result).append("\n\n");
+        
+        if (executeSimulation) {
+            simulation.append("         >> rax = ").append(result).append("\n\n");
+        }
     }
 
     @Override
@@ -401,9 +469,13 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         code.append("    movq -").append(offset).append("(%rbp), %rax\n");
 
-        // Simular valor (en una implementación real necesitarías tracking de valores)
-        addSimulationStep("movq -" + offset + "(%rbp), %rax",
-                "Cargar variable '" + node.getIdentifier() + "' en rax");
+        if (executeSimulation) {
+            long value = variableValues.getOrDefault(node.getIdentifier(), 0L);
+            updateRegister("rax", value);
+
+            addSimulationStep("movq -" + offset + "(%rbp), %rax",
+                    "Cargar variable '" + node.getIdentifier() + "' = " + value + " en rax");
+        }
     }
 
     private String generateLabel() {
@@ -424,8 +496,13 @@ public class X86AssemblyGenerator implements ASTVisitor {
         trace.append("#   rbx = ").append(getRegister("rbx")).append("\n");
         trace.append("#   rcx = ").append(getRegister("rcx")).append("\n");
         trace.append("#   rdx = ").append(getRegister("rdx")).append("\n");
+        trace.append("#\n# Variables:\n");
+        for (Map.Entry<String, Long> entry : variableValues.entrySet()) {
+            trace.append("#   ").append(entry.getKey()).append(" = ").append(entry.getValue()).append("\n");
+        }
         trace.append("#\n");
         trace.append("# RESULTADO FINAL (return value): ").append(getRegister("rax")).append("\n");
+        trace.append("# " + "=".repeat(60) + "\n");
         return trace.toString();
     }
 }
