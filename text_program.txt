@@ -1,7 +1,0 @@
-int main() {
-    int x;
-    bool flag;
-    x = 10 + 5;
-    flag = true;
-    return x;
-}

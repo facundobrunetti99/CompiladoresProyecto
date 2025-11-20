@@ -1,11 +1,8 @@
 package org.example.ast;
 
-/**
- * Nodo AST para operaciones de comparación (==, !=, <, >, <=, >=)
- */
 public class ComparisonNode extends ExpressionNode {
     private ExpressionNode left;
-    private String operator;
+    private String operator; // "==", "!=", "<", ">", "<=", ">="
     private ExpressionNode right;
 
     public ComparisonNode(ExpressionNode left, String operator, ExpressionNode right) {
@@ -25,6 +22,6 @@ public class ComparisonNode extends ExpressionNode {
 
     @Override
     public String toString() {
-        return "Compare[" + left + " " + operator + " " + right + "]";
+        return "Comparison[" + left + " " + operator + " " + right + "]";
     }
 }

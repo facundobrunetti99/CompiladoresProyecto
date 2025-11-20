@@ -1,55 +1,53 @@
 package org.example.semantic.symboltable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import org.example.ast.ASTVisitor;
-import org.example.ast.AssignmentNode;
-import org.example.ast.BinaryOpNode;
-import org.example.ast.BooleanNode;
-import org.example.ast.ComparisonNode;
-import org.example.ast.DeclarationNode;
-import org.example.ast.IfNode;
-import org.example.ast.MainFunctionNode;
-import org.example.ast.NumberNode;
-import org.example.ast.ProgramNode;
-import org.example.ast.ReturnNode;
-import org.example.ast.StatementNode;
-import org.example.ast.VariableDeclarationNode;
-import org.example.ast.VariableNode;
-import org.example.ast.WhileNode;
+import org.example.ast.*;
 
-/**
- * Analizador semántico que verifica: - Declaraciones de variables - Uso de
- * variables no declaradas - Redeclaraciones - Tipos compatibles
- */
 public class SemanticAnalyzer implements ASTVisitor {
 
     private SymbolTable symbolTable;
     private List<String> errors;
     private boolean hasErrors;
+    private Map<String, FunctionInfo> functions;
+    private String currentFunctionReturnType;
+
+    private static class FunctionInfo {
+        String returnType;
+        List<String> parameterTypes;
+        
+        FunctionInfo(String returnType, List<String> parameterTypes) {
+            this.returnType = returnType;
+            this.parameterTypes = parameterTypes;
+        }
+    }
 
     public SemanticAnalyzer(SymbolTable symbolTable) {
         this.symbolTable = symbolTable;
         this.errors = new ArrayList<>();
         this.hasErrors = false;
+        this.functions = new HashMap<>();
     }
 
     public boolean analyze(ProgramNode program) {
         errors.clear();
         hasErrors = false;
+        functions.clear();
 
         if (program != null) {
             program.accept(this);
         }
 
         if (hasErrors) {
-            System.err.println("\n✗ ERRORES SEMÁNTICOS ENCONTRADOS:");
+            System.err.println("\n errores semanticos:");
             System.err.println("=".repeat(70));
             for (String error : errors) {
-                System.err.println("  • " + error);
+                System.err.println(" " + error);
             }
-            System.err.println("=".repeat(70));
+            System.err.println("".repeat(70));
         }
 
         return !hasErrors;
@@ -64,7 +62,29 @@ public class SemanticAnalyzer implements ASTVisitor {
     public void visit(ProgramNode node) {
         symbolTable.enterScope("global");
 
+        // Primera pasada: registrar todas las funciones
+        for (FunctionDeclarationNode func : node.getFunctions()) {
+            String funcName = func.getIdentifier();
+            
+            if (functions.containsKey(funcName)) {
+                addError("Función '" + funcName + "' ya declarada");
+            } else {
+                List<String> paramTypes = new ArrayList<>();
+                for (ParameterNode param : func.getParameters()) {
+                    paramTypes.add(param.getType());
+                }
+                functions.put(funcName, new FunctionInfo(func.getReturnType(), paramTypes));
+            }
+        }
+
+        // Segunda pasada: analizar cada función
+        for (FunctionDeclarationNode func : node.getFunctions()) {
+            func.accept(this);
+        }
+
+        // Analizar main
         if (node.getMainFunction() != null) {
+            currentFunctionReturnType = node.getReturnType();
             node.getMainFunction().accept(this);
         }
 
@@ -72,15 +92,71 @@ public class SemanticAnalyzer implements ASTVisitor {
     }
 
     @Override
+    public void visit(FunctionDeclarationNode node) {
+        currentFunctionReturnType = node.getReturnType();
+        symbolTable.enterScope("func_" + node.getIdentifier());
+
+        // Declarar paramietros
+        for (ParameterNode param : node.getParameters()) {
+            param.accept(this);
+        }
+
+        // Declarar variables locales
+        for (DeclarationNode decl : node.getLocalDeclarations()) {
+            decl.accept(this);
+        }
+
+        // Analizar cuerpo
+        for (StatementNode stmt : node.getBody()) {
+            stmt.accept(this);
+        }
+
+        symbolTable.exitScope();
+    }
+
+    @Override
+    public void visit(ParameterNode node) {
+        String paramName = node.getIdentifier();
+        String paramType = node.getType();
+
+        if (symbolTable.existsLocal(paramName)) {
+            addError("Parámetro '" + paramName + "' ya declarado");
+        } else {
+            symbolTable.declare(paramName, paramType, -1, -1);
+        }
+    }
+
+    @Override
+    public void visit(FunctionCallNode node) {
+        String funcName = node.getFunctionName();
+
+        if (!functions.containsKey(funcName)) {
+            addError("Función '" + funcName + "' no declarada");
+            return;
+        }
+
+        FunctionInfo funcInfo = functions.get(funcName);
+        
+        // Verificar num de argumentos
+        if (node.getArgumentCount() != funcInfo.parameterTypes.size()) {
+            addError("Función '" + funcName + "' espera " + funcInfo.parameterTypes.size() + 
+                    " argumentos, pero recibió " + node.getArgumentCount());
+        }
+
+        // Analizar argumentos
+        for (ExpressionNode arg : node.getArguments()) {
+            arg.accept(this);
+        }
+    }
+
+    @Override
     public void visit(MainFunctionNode node) {
         symbolTable.enterScope("main");
 
-        // Procesar declaraciones
         for (DeclarationNode decl : node.getDeclarations()) {
             decl.accept(this);
         }
 
-        // Procesar sentencias
         for (StatementNode stmt : node.getStatements()) {
             stmt.accept(this);
         }
@@ -93,11 +169,9 @@ public class SemanticAnalyzer implements ASTVisitor {
         String varName = node.getIdentifier();
         String varType = node.getType();
 
-        // Verificar si ya existe en el scope actual
         if (symbolTable.existsLocal(varName)) {
             addError("Variable '" + varName + "' ya declarada en este scope");
         } else {
-            // Declarar en la tabla de símbolos
             boolean success = symbolTable.declare(varName, varType, -1, -1);
             if (!success) {
                 addError("Error al declarar variable '" + varName + "'");
@@ -109,12 +183,10 @@ public class SemanticAnalyzer implements ASTVisitor {
     public void visit(AssignmentNode node) {
         String varName = node.getIdentifier();
 
-        // Verificar que la variable existe
         if (!symbolTable.exists(varName)) {
             addError("Variable '" + varName + "' no declarada");
         }
 
-        // Visitar la expresión del lado derecho
         if (node.getExpression() != null) {
             node.getExpression().accept(this);
         }
@@ -122,19 +194,16 @@ public class SemanticAnalyzer implements ASTVisitor {
 
     @Override
     public void visit(IfNode node) {
-        // Verificar condición
         if (node.getCondition() != null) {
             node.getCondition().accept(this);
         }
 
-        // Nuevo scope para THEN
         symbolTable.enterScope("if_then");
         for (StatementNode stmt : node.getThenBlock()) {
             stmt.accept(this);
         }
         symbolTable.exitScope();
 
-        // Nuevo scope para ELSE (si existe)
         if (node.hasElse()) {
             symbolTable.enterScope("if_else");
             for (StatementNode stmt : node.getElseBlock()) {
@@ -146,12 +215,10 @@ public class SemanticAnalyzer implements ASTVisitor {
 
     @Override
     public void visit(WhileNode node) {
-        // Verificar condición
         if (node.getCondition() != null) {
             node.getCondition().accept(this);
         }
 
-        // Nuevo scope para el cuerpo del while
         symbolTable.enterScope("while_body");
         for (StatementNode stmt : node.getBody()) {
             stmt.accept(this);
@@ -161,7 +228,16 @@ public class SemanticAnalyzer implements ASTVisitor {
 
     @Override
     public void visit(ComparisonNode node) {
-        // Verificar operandos
+        if (node.getLeft() != null) {
+            node.getLeft().accept(this);
+        }
+        if (node.getRight() != null) {
+            node.getRight().accept(this);
+        }
+    }
+
+    @Override
+    public void visit(LogicalOpNode node) {
         if (node.getLeft() != null) {
             node.getLeft().accept(this);
         }
@@ -189,7 +265,7 @@ public class SemanticAnalyzer implements ASTVisitor {
 
     @Override
     public void visit(NumberNode node) {
-        // Los números siempre son válidos
+        // Los num siempre son válidos
     }
 
     @Override
@@ -201,9 +277,15 @@ public class SemanticAnalyzer implements ASTVisitor {
     public void visit(VariableNode node) {
         String varName = node.getIdentifier();
 
-        // Verificar que la variable existe
         if (!symbolTable.exists(varName)) {
             addError("Variable '" + varName + "' no declarada");
+        }
+    }
+
+    @Override
+    public void visit(ExpressionStatementNode node) {
+        if (node.getExpression() != null) {
+            node.getExpression().accept(this);
         }
     }
 }

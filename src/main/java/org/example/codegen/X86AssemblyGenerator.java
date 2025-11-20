@@ -1,23 +1,7 @@
 package org.example.codegen;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.example.ast.ASTVisitor;
-import org.example.ast.AssignmentNode;
-import org.example.ast.BinaryOpNode;
-import org.example.ast.BooleanNode;
-import org.example.ast.ComparisonNode;
-import org.example.ast.DeclarationNode;
-import org.example.ast.IfNode;
-import org.example.ast.MainFunctionNode;
-import org.example.ast.NumberNode;
-import org.example.ast.ProgramNode;
-import org.example.ast.ReturnNode;
-import org.example.ast.StatementNode;
-import org.example.ast.VariableDeclarationNode;
-import org.example.ast.VariableNode;
-import org.example.ast.WhileNode;
+import java.util.*;
+import org.example.ast.*;
 import org.example.semantic.symboltable.SymbolTable;
 
 public class X86AssemblyGenerator implements ASTVisitor {
@@ -26,8 +10,10 @@ public class X86AssemblyGenerator implements ASTVisitor {
     private StringBuilder simulation;
     private SymbolTable symbolTable;
     private Map<String, Integer> localVariables;
+    private Map<String, FunctionDeclarationNode> functions;
     private Map<String, Long> variableValues;
     private Map<String, Long> registers;
+    private Stack<Map<String, Long>> callStack;
     private int stackOffset;
     private int labelCounter;
     private String returnType;
@@ -40,8 +26,10 @@ public class X86AssemblyGenerator implements ASTVisitor {
         this.simulation = new StringBuilder();
         this.symbolTable = symbolTable;
         this.localVariables = new HashMap<>();
+        this.functions = new HashMap<>();
         this.variableValues = new HashMap<>();
         this.registers = new HashMap<>();
+        this.callStack = new Stack<>();
         this.stackOffset = 0;
         this.labelCounter = 0;
         this.stepCounter = 0;
@@ -60,7 +48,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
     public String generateCode(ProgramNode program) {
         program.accept(this);
         StringBuilder output = new StringBuilder();
-        output.append("# x86-64 Assembly Code con estructuras de control\n");
+        output.append("# x86-64 Assembly code con  operadores lógicos\n");
         output.append(".section .text\n");
         output.append(".global main\n\n");
         output.append(code.toString());
@@ -89,14 +77,165 @@ public class X86AssemblyGenerator implements ASTVisitor {
     @Override
     public void visit(ProgramNode node) {
         this.returnType = node.getReturnType();
-        simulation.append("# SIMULACIÓN - Programa con tipo de retorno: ").append(returnType).append("\n");
+        simulation.append("#simulacion - Programa con tipo de retorno: ").append(returnType).append("\n");
         simulation.append("# " + "=".repeat(60) + "\n\n");
 
+        // Registrar todas las funciones primero
+        for (FunctionDeclarationNode func : node.getFunctions()) {
+            functions.put(func.getIdentifier(), func);
+        }
+
+        // Generar código para cada función
+        for (FunctionDeclarationNode func : node.getFunctions()) {
+            func.accept(this);
+        }
+
+        // Generar main
         node.getMainFunction().accept(this);
     }
 
     @Override
+    public void visit(FunctionDeclarationNode node) {
+        simulation.append("\n# --- FUNCIÓN: " + node.getIdentifier() + " ---\n");
+        
+        code.append(node.getIdentifier()).append(":\n");
+        code.append("    pushq %rbp\n");
+        code.append("    movq %rsp, %rbp\n");
+        
+        addSimulationStep("pushq %rbp", "Guardar frame pointer (función " + node.getIdentifier() + ")");
+        addSimulationStep("movq %rsp, %rbp", "Establecer nuevo frame pointer");
+
+        // Guardar estado de variables locales anterior
+        Map<String, Integer> savedLocalVars = new HashMap<>(localVariables);
+        int savedStackOffset = stackOffset;
+        
+        localVariables.clear();
+        stackOffset = 0;
+
+        // Procesar parámetros (están en la pila o registros según convención)
+        int paramOffset = 16; // Después de rbp y return address
+        for (int i = 0; i < node.getParameters().size(); i++) {
+            ParameterNode param = node.getParameters().get(i);
+            localVariables.put(param.getIdentifier(), paramOffset + (i * 8));
+            
+            if (executeSimulation) {
+                // Para simulación, asumimos valores pasados
+                variableValues.put(param.getIdentifier(), 0L);
+            }
+        }
+
+        // Reservar espacio para variables locales
+        int localVarCount = node.getLocalDeclarations().size();
+        if (localVarCount > 0) {
+            int stackSpace = ((localVarCount * 8) + 15) & ~15;
+            code.append("    subq $").append(stackSpace).append(", %rsp\n\n");
+            addSimulationStep("subq $" + stackSpace + ", %rsp",
+                    "Reservar espacio para " + localVarCount + " variable(s) local(es)");
+        }
+
+        // Procesar declaraciones locales
+        for (DeclarationNode decl : node.getLocalDeclarations()) {
+            decl.accept(this);
+        }
+
+        // Procesar cuerpo de la función
+        for (StatementNode stmt : node.getBody()) {
+            stmt.accept(this);
+        }
+
+        // Epílogo de función
+        code.append("\n    movq %rbp, %rsp\n");
+        code.append("    popq %rbp\n");
+        code.append("    ret\n\n");
+
+        // Restaurar estado
+        localVariables = savedLocalVars;
+        stackOffset = savedStackOffset;
+    }
+
+    @Override
+    public void visit(ParameterNode node) {
+        // Los parámetros ya fueron manejados en FunctionDeclarationNode
+    }
+
+    @Override
+    public void visit(FunctionCallNode node) {
+        simulation.append("# --- LLAMADA A FUNCIÓN: " + node.getFunctionName() + " ---\n");
+
+        // Evaluar argumentos de derecha a izquierda y ponerlos en la pila
+        List<ExpressionNode> args = node.getArguments();
+        List<Long> argValues = new ArrayList<>();
+        
+        for (int i = args.size() - 1; i >= 0; i--) {
+            args.get(i).accept(this);
+            long argValue = getRegister("rax");
+            argValues.add(0, argValue);
+            
+            code.append("    pushq %rax\n");
+            addSimulationStep("pushq %rax", "Guardar argumento " + (i+1) + " = " + argValue);
+        }
+
+        // Llamar a la función
+        code.append("    call ").append(node.getFunctionName()).append("\n");
+        addSimulationStep("call " + node.getFunctionName(), 
+                         "Llamar función con " + args.size() + " argumento(s)");
+
+        // Limpiar argumentos de la pila
+        if (args.size() > 0) {
+            int stackCleanup = args.size() * 8;
+            code.append("    addq $").append(stackCleanup).append(", %rsp\n");
+            addSimulationStep("addq $" + stackCleanup + ", %rsp", "Limpiar argumentos");
+        }
+
+        // Simular ejecución de función
+        if (executeSimulation && functions.containsKey(node.getFunctionName())) {
+            FunctionDeclarationNode func = functions.get(node.getFunctionName());
+            
+            // Guardar contexto actual
+            callStack.push(new HashMap<>(variableValues));
+            
+            // Crear nuevo contexto con parámetros
+            variableValues.clear();
+            for (int i = 0; i < func.getParameters().size() && i < argValues.size(); i++) {
+                ParameterNode param = func.getParameters().get(i);
+                variableValues.put(param.getIdentifier(), argValues.get(i));
+                simulation.append("         >> Parámetro " + param.getIdentifier() + 
+                               " = " + argValues.get(i) + "\n");
+            }
+            
+            // Ejecutar cuerpo (simplificado para simulación)
+            long returnValue = simulateFunctionExecution(func);
+            updateRegister("rax", returnValue);
+            
+            // Restaurar contexto
+            variableValues = callStack.pop();
+            
+            simulation.append("         >> Retorno: " + returnValue + "\n\n");
+        }
+
+        if (executeSimulation) {
+            simulation.append("         >> rax (resultado) = " + getRegister("rax") + "\n\n");
+        }
+    }
+
+    private long simulateFunctionExecution(FunctionDeclarationNode func) {
+        // Simulación simplificada: buscar return statement
+        for (StatementNode stmt : func.getBody()) {
+            if (stmt instanceof ReturnNode) {
+                ReturnNode ret = (ReturnNode) stmt;
+                if (ret.hasExpression()) {
+                    ret.getExpression().accept(this);
+                    return getRegister("rax");
+                }
+            }
+        }
+        return 0;
+    }
+
+    @Override
     public void visit(MainFunctionNode node) {
+        simulation.append("\n# --- FUNCIÓN MAIN ---\n");
+        
         code.append("main:\n");
         code.append("    pushq %rbp\n");
         code.append("    movq %rsp, %rbp\n");
@@ -120,7 +259,6 @@ public class X86AssemblyGenerator implements ASTVisitor {
             stmt.accept(this);
         }
 
-        // Epílogo si no hubo return explícito
         code.append("\n    movq %rbp, %rsp\n");
         code.append("    popq %rbp\n");
         code.append("    ret\n");
@@ -136,7 +274,6 @@ public class X86AssemblyGenerator implements ASTVisitor {
         }
 
         code.append("    movq $0, -").append(stackOffset).append("(%rbp)\n");
-
         addSimulationStep("movq $0, -" + stackOffset + "(%rbp)",
                 "Inicializar variable '" + node.getIdentifier() + "' = 0");
     }
@@ -170,11 +307,9 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         simulation.append("# --- IF STATEMENT ---\n");
 
-        // Evaluar condición
         node.getCondition().accept(this);
         lastConditionResult = getRegister("rax");
 
-        // Generar código Assembly
         code.append("    cmpq $0, %rax\n");
         if (node.hasElse()) {
             code.append("    je ").append(elseLabel).append("\n");
@@ -184,12 +319,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
             addSimulationStep("je " + endLabel, "Saltar al final si condición es falsa");
         }
 
-        // Guardar estado antes de procesar bloques
-        Map<String, Long> savedVarValues = new HashMap<>(variableValues);
-        Map<String, Long> savedRegisters = new HashMap<>(registers);
-
         if (lastConditionResult != 0) {
-            // Condición TRUE - ejecutar THEN en simulación
             simulation.append("# --- THEN BLOCK (Ejecutado) ---\n");
             executeSimulation = true;
             for (StatementNode stmt : node.getThenBlock()) {
@@ -200,11 +330,9 @@ public class X86AssemblyGenerator implements ASTVisitor {
                 code.append("    jmp ").append(endLabel).append("\n");
                 addSimulationStep("jmp " + endLabel, "Saltar al final (skip else)");
 
-                // Generar código ELSE pero NO ejecutar simulación
                 code.append(elseLabel).append(":\n");
                 simulation.append("# --- ELSE BLOCK (NO ejecutado) ---\n");
 
-                // Restaurar estado y desactivar ejecución
                 executeSimulation = false;
                 for (StatementNode stmt : node.getElseBlock()) {
                     stmt.accept(this);
@@ -212,10 +340,8 @@ public class X86AssemblyGenerator implements ASTVisitor {
                 executeSimulation = true;
             }
         } else {
-            // Condición FALSE - ejecutar ELSE en simulación
             simulation.append("# --- THEN BLOCK (NO ejecutado) ---\n");
 
-            // Generar código THEN pero NO ejecutar simulación
             executeSimulation = false;
             for (StatementNode stmt : node.getThenBlock()) {
                 stmt.accept(this);
@@ -246,7 +372,6 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         code.append(loopLabel).append(":\n");
 
-        // Evaluar condición inicial
         node.getCondition().accept(this);
         lastConditionResult = getRegister("rax");
 
@@ -254,7 +379,6 @@ public class X86AssemblyGenerator implements ASTVisitor {
         code.append("    je ").append(endLabel).append("\n");
         addSimulationStep("je " + endLabel, "Salir del loop si condición es falsa");
 
-        // Simular iteraciones del while
         int iterationCount = 0;
         int maxIterations = 1000;
 
@@ -267,7 +391,6 @@ public class X86AssemblyGenerator implements ASTVisitor {
                 stmt.accept(this);
             }
 
-            // Re-evaluar condición
             node.getCondition().accept(this);
             lastConditionResult = getRegister("rax");
 
@@ -355,6 +478,83 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         if (executeSimulation) {
             simulation.append("         >> rax = ").append(result).append("\n\n");
+        }
+    }
+
+    @Override
+    public void visit(LogicalOpNode node) {
+        if (node.isUnary()) {
+            // Operador NOT (!)
+            node.getLeft().accept(this);
+            long operandValue = getRegister("rax");
+
+            code.append("    cmpq $0, %rax\n");
+            code.append("    sete %al\n");
+            code.append("    movzbl %al, %eax\n");
+
+            long result = (operandValue == 0) ? 1 : 0;
+            updateRegister("rax", result);
+
+            addSimulationStep("NOT operation", "!" + operandValue + " → " + result);
+            if (executeSimulation) {
+                simulation.append("         >> rax = ").append(result).append("\n\n");
+            }
+        } else {
+            // Operadores binarios (&&, ||)
+            node.getLeft().accept(this);
+            long leftValue = getRegister("rax");
+
+            String shortCircuitLabel = generateLabel();
+            String endLabel = generateLabel();
+
+            if (node.getOperator().equals("&&")) {
+                // AND: si left es falso, skip right
+                code.append("    cmpq $0, %rax\n");
+                code.append("    je ").append(shortCircuitLabel).append("\n");
+                addSimulationStep("je " + shortCircuitLabel, "Short-circuit AND si left es falso");
+
+                if (leftValue != 0) {
+                    node.getRight().accept(this);
+                    long rightValue = getRegister("rax");
+                    long result = (rightValue != 0) ? 1 : 0;
+                    updateRegister("rax", result);
+                    addSimulationStep("AND operation", leftValue + " && " + rightValue + " → " + result);
+                } else {
+                    updateRegister("rax", 0);
+                    addSimulationStep("AND short-circuit", leftValue + " && ? → false");
+                }
+
+                code.append("    jmp ").append(endLabel).append("\n");
+                code.append(shortCircuitLabel).append(":\n");
+                code.append("    xorq %rax, %rax\n");
+                code.append(endLabel).append(":\n");
+
+            } else if (node.getOperator().equals("||")) {
+                // OR: si left es verdadero, skip right
+                code.append("    cmpq $0, %rax\n");
+                code.append("    jne ").append(shortCircuitLabel).append("\n");
+                addSimulationStep("jne " + shortCircuitLabel, "Short-circuit OR si left es verdadero");
+
+                if (leftValue == 0) {
+                    node.getRight().accept(this);
+                    long rightValue = getRegister("rax");
+                    long result = (rightValue != 0) ? 1 : 0;
+                    updateRegister("rax", result);
+                    addSimulationStep("OR operation", leftValue + " || " + rightValue + " → " + result);
+                } else {
+                    updateRegister("rax", 1);
+                    addSimulationStep("OR short-circuit", leftValue + " || ? → true");
+                }
+
+                code.append("    jmp ").append(endLabel).append("\n");
+                code.append(shortCircuitLabel).append(":\n");
+                code.append("    movl $1, %eax\n");
+                code.append(endLabel).append(":\n");
+            }
+
+            if (executeSimulation) {
+                simulation.append("         >> rax = ").append(getRegister("rax")).append("\n\n");
+            }
         }
     }
 
@@ -452,10 +652,10 @@ public class X86AssemblyGenerator implements ASTVisitor {
             addSimulationStep("xorq %rax, %rax", "Cargar 0 en rax (optimizado)");
         } else if (value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE) {
             code.append("    movl $").append(value).append(", %eax\n");
-            addSimulationStep("movl $" + value + ", %eax", "Cargar constante " + value + " en eax (32-bit)");
+            addSimulationStep("movl $" + value + ", %eax", "Cargar constante " + value);
         } else {
             code.append("    movq $").append(value).append(", %rax\n");
-            addSimulationStep("movq $" + value + ", %rax", "Cargar constante " + value + " en rax (64-bit)");
+            addSimulationStep("movq $" + value + ", %rax", "Cargar constante " + value);
         }
 
         updateRegister("rax", value);
@@ -467,10 +667,10 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         if (value == 0) {
             code.append("    xorq %rax, %rax\n");
-            addSimulationStep("xorq %rax, %rax", "Cargar false (0) en rax");
+            addSimulationStep("xorq %rax, %rax", "Cargar false (0)");
         } else {
             code.append("    movl $1, %eax\n");
-            addSimulationStep("movl $1, %eax", "Cargar true (1) en eax");
+            addSimulationStep("movl $1, %eax", "Cargar true (1)");
         }
 
         updateRegister("rax", value);
@@ -490,7 +690,14 @@ public class X86AssemblyGenerator implements ASTVisitor {
             updateRegister("rax", value);
 
             addSimulationStep("movq -" + offset + "(%rbp), %rax",
-                    "Cargar variable '" + node.getIdentifier() + "' = " + value + " en rax");
+                    "Cargar variable '" + node.getIdentifier() + "' = " + value);
+        }
+    }
+
+    @Override
+    public void visit(ExpressionStatementNode node) {
+        if (node.getExpression() != null) {
+            node.getExpression().accept(this);
         }
     }
 
@@ -501,7 +708,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
     private String generateSimulationTrace() {
         StringBuilder trace = new StringBuilder();
         trace.append("#\n# " + "=".repeat(60) + "\n");
-        trace.append("# TRAZA DE EJECUCIÓN\n");
+        trace.append("# TRAZA DE Ejecucion\n");
         trace.append("# " + "=".repeat(60) + "\n");
         trace.append(simulation.toString());
         trace.append("# " + "=".repeat(60) + "\n");

@@ -2,13 +2,11 @@ int main() {
     int x;
     int y;
     int z;
-    x = 5;
-    z=2;
-    y=0;
-    if(y<2){
-     z=x*50;
-       
+    bool result;
+    x=10;
+    z=15;
+    y=5;
+
    
-    }
     return z;
 }

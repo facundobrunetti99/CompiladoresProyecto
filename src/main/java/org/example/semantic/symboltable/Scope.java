@@ -2,10 +2,7 @@ package org.example.semantic.symboltable;
 
 import java.util.*;
 
-/**
- * Representa un scope (ámbito) en el programa.
- * Puede contener múltiples símbolos y tener scopes hijos anidados.
- */
+
 public class Scope {
     private String scopeName;
     private Scope parent;
@@ -25,9 +22,7 @@ public class Scope {
         }
     }
 
-    /**
-     * Declara un nuevo símbolo en este scope
-     */
+   
     public boolean declare(String name, String type, int line, int column) {
         if (symbols.containsKey(name)) {
             return false; // Ya existe
@@ -36,9 +31,7 @@ public class Scope {
         return true;
     }
 
-    /**
-     * Declara un símbolo con valor inicial
-     */
+  
     public boolean declare(String name, String type, Object value, int line, int column) {
         if (symbols.containsKey(name)) {
             return false;
@@ -47,28 +40,22 @@ public class Scope {
         return true;
     }
 
-    /**
-     * Busca un símbolo solo en este scope (no busca en padres)
-     */
+  
     public SymbolEntry lookup(String name) {
         return symbols.get(name);
     }
 
-    /**
-     * Verifica si un símbolo existe en este scope
-     */
+   
     public boolean contains(String name) {
         return symbols.containsKey(name);
     }
 
-    /**
-     * Agrega un scope hijo
-     */
+   
     public void addChild(Scope child) {
         children.add(child);
     }
 
-    // Getters
+   
     public String getScopeName() { return scopeName; }
     public Scope getParent() { return parent; }
     public int getLevel() { return level; }

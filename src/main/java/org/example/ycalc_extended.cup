@@ -5,7 +5,6 @@ import org.example.ast.*;
 import org.example.semantic.symboltable.SymbolTable;
 
 parser code {:
-
     private SymbolTable symbolTable = new SymbolTable();
 
     public SymbolTable getSymbolTable() {
@@ -13,11 +12,11 @@ parser code {:
     }
 
     public void report_error(String message, Object info) {
-        StringBuffer m = new StringBuffer("Error Sintáctico");
+        StringBuffer m = new StringBuffer("error sintactico");
         if (info instanceof java_cup.runtime.Symbol) {
             java_cup.runtime.Symbol s = ((java_cup.runtime.Symbol) info);
             if (s.left >= 0) {
-                m.append(" en línea " + (s.left + 1));
+                m.append(" en linea " + (s.left + 1));
                 if (s.right >= 0)
                     m.append(", columna " + (s.right + 1));
             }
@@ -30,91 +29,116 @@ parser code {:
         report_error(message, info);
         System.exit(1);
     }
-
-    public void checkVariable(String varName, int line, int column) {
-        if (!symbolTable.exists(varName)) {
-            System.err.println("Error Semántico en línea " + (line+1) + ", columna " + (column+1) +
-                             ": Variable '" + varName + "' no declarada");
-            System.exit(1);
-        }
-    }
-
-    public void addVariable(String varName, String type, int line, int column) {
-        if (symbolTable.existsLocal(varName)) {
-            System.err.println("Error Semántico en línea " + (line+1) + ", columna " + (column+1) +
-                             ": Variable '" + varName + "' ya declarada en este scope");
-            System.exit(1);
-        }
-        if (symbolTable.declare(varName, type, line, column)) {
-            System.out.println("✓ Variable '" + varName + "' declarada como " + type +
-                             " (línea " + (line+1) + ")");
-        }
-    }
-
-    public void enterScope(String scopeName) {
-        symbolTable.enterScope(scopeName);
-        System.out.println("  → Entrando a scope: " + scopeName);
-    }
-
-    public void exitScope() {
-        System.out.println("  ← Saliendo de scope: " + symbolTable.getCurrentScope().getScopeName());
-        symbolTable.exitScope();
-    }
-
 :};
 
-/* Terminales */
+/* terminales */
 terminal           SEMI, PLUS, MINUS, TIMES, DIVIDE, LPAREN, RPAREN;
-terminal           LBRACE, RBRACE, ASSIGN;
-terminal           INT, BOOL, VOID, MAIN, RETURN;
+terminal           LBRACE, RBRACE, ASSIGN, COMMA;
+terminal           INT, BOOL, VOID, MAIN, RETURN, FUNC;
 terminal           IF, ELSE, WHILE;
 terminal           EQ, NE, LT, GT, LE, GE;
+terminal           AND, OR, NOT;
 terminal           TRUE, FALSE;
 terminal Integer   NUMBER;
 terminal String    ID;
 
-/* No terminales */
-non terminal ProgramNode           program;
-non terminal String                return_type;
-non terminal MainFunctionNode      main_function;
-non terminal List<DeclarationNode> declaration_list;
-non terminal DeclarationNode       declaration;
-non terminal List<StatementNode>   statement_list;
-non terminal StatementNode         statement;
-non terminal AssignmentNode        assignment;
-non terminal ReturnNode            return_stmt;
-non terminal IfNode                if_stmt;
-non terminal WhileNode             while_stmt;
-non terminal ExpressionNode        expr;
-non terminal ExpressionNode        comparison;
+/* no terminales */
+non terminal ProgramNode                    program;
+non terminal String                         return_type, type;
+non terminal List<FunctionDeclarationNode>  function_list;
+non terminal FunctionDeclarationNode        function_declaration;
+non terminal List<ParameterNode>            parameter_list, parameter_list_non_empty;
+non terminal ParameterNode                  parameter;
+non terminal MainFunctionNode               main_function;
+non terminal List<DeclarationNode>          declaration_list;
+non terminal DeclarationNode                declaration;
+non terminal List<StatementNode>            statement_list;
+non terminal StatementNode                  statement;
+non terminal AssignmentNode                 assignment;
+non terminal ReturnNode                     return_stmt;
+non terminal IfNode                         if_stmt;
+non terminal WhileNode                      while_stmt;
+non terminal ExpressionNode                 expr, logical_expr, atom_expr;
+non terminal List<ExpressionNode>           argument_list, argument_list_non_empty;
 
-/* Precedencia */
+/* precedencia y asociatividad */
+precedence left OR;
+precedence left AND;
+precedence right NOT;
 precedence left EQ, NE;
 precedence left LT, GT, LE, GE;
 precedence left PLUS, MINUS;
 precedence left TIMES, DIVIDE;
 precedence nonassoc ELSE;
 
-/* Gramática */
+/* gramatica */
 
-program ::= return_type:rt main_function:mf
+program ::= return_type:rt function_list:fl main_function:mf
 {:
-    ProgramNode prog = new ProgramNode(rt, mf);
-    System.out.println("\n✓ Programa parseado exitosamente con tipo de retorno: " + rt);
-    parser.symbolTable.printSymbolTable();
-    parser.symbolTable.printStatistics();
+    ProgramNode prog = new ProgramNode(rt, fl, mf);
     RESULT = prog;
 :}
 ;
 
 return_type ::= INT   {: RESULT = "int"; :}
-              | BOOL {: RESULT = "bool"; :}
-              | VOID {: RESULT = "void"; :}
+              | BOOL  {: RESULT = "bool"; :}
+              | VOID  {: RESULT = "void"; :}
 ;
 
+type ::= INT   {: RESULT = "int"; :}
+       | BOOL  {: RESULT = "bool"; :}
+;
+
+/* lista de funciones (puede estar vacia) */
+function_list ::= function_list:fl function_declaration:fd
+{:
+    if (fl == null) fl = new ArrayList<FunctionDeclarationNode>();
+    fl.add(fd);
+    RESULT = fl;
+:}
+| /* empty */
+{: RESULT = new ArrayList<FunctionDeclarationNode>(); :}
+;
+
+/* declaracion de funcion */
+function_declaration ::= 
+    return_type:rt ID:name LPAREN parameter_list:params RPAREN 
+    LBRACE declaration_list:decls statement_list:stmts RBRACE
+{:
+    RESULT = new FunctionDeclarationNode(rt, name, params, decls, stmts);
+:}
+;
+
+/* lista de parametros */
+parameter_list ::= parameter_list_non_empty:pl
+{: RESULT = pl; :}
+| /* empty */
+{: RESULT = new ArrayList<ParameterNode>(); :}
+;
+
+parameter_list_non_empty ::= 
+    parameter_list_non_empty:pl COMMA parameter:p
+{:
+    pl.add(p);
+    RESULT = pl;
+:}
+| parameter:p
+{:
+    List<ParameterNode> pl = new ArrayList<ParameterNode>();
+    pl.add(p);
+    RESULT = pl;
+:}
+;
+
+parameter ::= type:t ID:name
+{:
+    RESULT = new ParameterNode(t, name);
+:}
+;
+
+/* Función main */
 main_function ::= MAIN LPAREN RPAREN LBRACE declaration_list:dl statement_list:sl RBRACE
 {:
-    System.out.println("✓ Función main parseada");
     RESULT = new MainFunctionNode(dl, sl);
 :}
 ;
@@ -131,12 +155,10 @@ declaration_list ::= declaration_list:dl declaration:d
 
 declaration ::= INT ID:name SEMI
 {:
-    parser.addVariable(name, "int", nameleft, nameright);
     RESULT = new VariableDeclarationNode("int", name);
 :}
 | BOOL ID:name SEMI
 {:
-    parser.addVariable(name, "bool", nameleft, nameright);
     RESULT = new VariableDeclarationNode("bool", name);
 :}
 ;
@@ -155,123 +177,112 @@ statement ::= assignment:a    {: RESULT = a; :}
             | return_stmt:r   {: RESULT = r; :}
             | if_stmt:i       {: RESULT = i; :}
             | while_stmt:w    {: RESULT = w; :}
+            | expr:e SEMI     {: RESULT = new ExpressionStatementNode(e); :}
 ;
 
 assignment ::= ID:name ASSIGN expr:e SEMI
 {:
-    parser.checkVariable(name, nameleft, nameright);
-    System.out.println("✓ Asignación a variable: " + name);
     RESULT = new AssignmentNode(name, e);
 :}
 ;
 
 return_stmt ::= RETURN expr:e SEMI
 {:
-    System.out.println("✓ Return con expresión");
     RESULT = new ReturnNode(e);
 :}
 | RETURN SEMI
 {:
-    System.out.println("✓ Return sin expresión");
     RESULT = new ReturnNode(null);
 :}
 ;
 
-if_stmt ::= IF LPAREN comparison:c RPAREN LBRACE statement_list:then_stmts RBRACE
+if_stmt ::= IF LPAREN logical_expr:c RPAREN LBRACE statement_list:then_stmts RBRACE
             ELSE LBRACE statement_list:else_stmts RBRACE
 {:
-    System.out.println("✓ IF-ELSE completo");
     RESULT = new IfNode(c, then_stmts, else_stmts);
 :}
-| IF LPAREN comparison:c RPAREN LBRACE statement_list:then_stmts RBRACE
+| IF LPAREN logical_expr:c RPAREN LBRACE statement_list:then_stmts RBRACE
 {:
-    System.out.println("✓ IF sin ELSE");
     RESULT = new IfNode(c, then_stmts, null);
 :}
 ;
 
-while_stmt ::= WHILE LPAREN comparison:c RPAREN LBRACE statement_list:body RBRACE
+while_stmt ::= WHILE LPAREN logical_expr:c RPAREN LBRACE statement_list:body RBRACE
 {:
-    System.out.println("✓ WHILE loop");
     RESULT = new WhileNode(c, body);
 :}
 ;
 
-comparison ::= expr:e1 EQ expr:e2
-{:
-    System.out.println("  Comparación: ==");
-    RESULT = new ComparisonNode(e1, "==", e2);
-:}
+/* expresiones logicas - nivel superior */
+logical_expr ::= logical_expr:e1 AND logical_expr:e2
+{: RESULT = new LogicalOpNode(e1, "&&", e2); :}
+| logical_expr:e1 OR logical_expr:e2
+{: RESULT = new LogicalOpNode(e1, "||", e2); :}
+| NOT logical_expr:e
+{: RESULT = new LogicalOpNode("!", e); :}
+| LPAREN logical_expr:e RPAREN
+{: RESULT = e; :}
+| expr:e1 EQ expr:e2
+{: RESULT = new ComparisonNode(e1, "==", e2); :}
 | expr:e1 NE expr:e2
-{:
-    System.out.println("  Comparación: !=");
-    RESULT = new ComparisonNode(e1, "!=", e2);
-:}
+{: RESULT = new ComparisonNode(e1, "!=", e2); :}
 | expr:e1 LT expr:e2
-{:
-    System.out.println("  Comparación: <");
-    RESULT = new ComparisonNode(e1, "<", e2);
-:}
+{: RESULT = new ComparisonNode(e1, "<", e2); :}
 | expr:e1 GT expr:e2
-{:
-    System.out.println("  Comparación: >");
-    RESULT = new ComparisonNode(e1, ">", e2);
-:}
+{: RESULT = new ComparisonNode(e1, ">", e2); :}
 | expr:e1 LE expr:e2
-{:
-    System.out.println("  Comparación: <=");
-    RESULT = new ComparisonNode(e1, "<=", e2);
-:}
+{: RESULT = new ComparisonNode(e1, "<=", e2); :}
 | expr:e1 GE expr:e2
+{: RESULT = new ComparisonNode(e1, ">=", e2); :}
+;
+
+/* expresiones aritmeticas - sin comparaciones ni lógica */
+expr ::= expr:e1 PLUS expr:e2
+{: RESULT = new BinaryOpNode(e1, "+", e2); :}
+| expr:e1 MINUS expr:e2
+{: RESULT = new BinaryOpNode(e1, "-", e2); :}
+| expr:e1 TIMES expr:e2
+{: RESULT = new BinaryOpNode(e1, "*", e2); :}
+| expr:e1 DIVIDE expr:e2
+{: RESULT = new BinaryOpNode(e1, "/", e2); :}
+| atom_expr:a
+{: RESULT = a; :}
+;
+
+/* Expresiones atómicas - los bloques fundamentales */
+atom_expr ::= LPAREN expr:e RPAREN
+{: RESULT = e; :}
+| NUMBER:n
+{: RESULT = new NumberNode(n); :}
+| TRUE
+{: RESULT = new BooleanNode(true); :}
+| FALSE
+{: RESULT = new BooleanNode(false); :}
+| ID:name LPAREN argument_list:args RPAREN
 {:
-    System.out.println("  Comparación: >=");
-    RESULT = new ComparisonNode(e1, ">=", e2);
+    RESULT = new FunctionCallNode(name, args);
+:}
+| ID:name
+{: RESULT = new VariableNode(name); :}
+;
+
+/* Lista de argumentos para llamadas a función */
+argument_list ::= argument_list_non_empty:al
+{: RESULT = al; :}
+| /* empty */
+{: RESULT = new ArrayList<ExpressionNode>(); :}
+;
+
+argument_list_non_empty ::= 
+    argument_list_non_empty:al COMMA expr:e
+{:
+    al.add(e);
+    RESULT = al;
 :}
 | expr:e
 {:
-    RESULT = e;
-:}
-;
-
-expr ::= expr:e1 PLUS expr:e2
-{:
-    System.out.println("  Operación: +");
-    RESULT = new BinaryOpNode(e1, "+", e2);
-:}
-| expr:e1 MINUS expr:e2
-{:
-    System.out.println("  Operación: -");
-    RESULT = new BinaryOpNode(e1, "-", e2);
-:}
-| expr:e1 TIMES expr:e2
-{:
-    System.out.println("  Operación: *");
-    RESULT = new BinaryOpNode(e1, "*", e2);
-:}
-| expr:e1 DIVIDE expr:e2
-{:
-    System.out.println("  Operación: /");
-    RESULT = new BinaryOpNode(e1, "/", e2);
-:}
-| LPAREN expr:e RPAREN
-{:
-    RESULT = e;
-:}
-| NUMBER:n
-{:
-    RESULT = new NumberNode(n);
-:}
-| ID:name
-{:
-    parser.checkVariable(name, nameleft, nameright);
-    RESULT = new VariableNode(name);
-:}
-| TRUE
-{:
-    RESULT = new BooleanNode(true);
-:}
-| FALSE
-{:
-    RESULT = new BooleanNode(false);
+    List<ExpressionNode> al = new ArrayList<ExpressionNode>();
+    al.add(e);
+    RESULT = al;
 :}
 ;
