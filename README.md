@@ -1,9 +1,12 @@
 Compilador de Lenguaje Imperativo con Generación de Código x86-64
-Nombre y apellidos de los integrantes del grupo;
- -Villegas Rodrigo
- -Velasco Benjamin
- -Barroso Gonzalo
- -Garcia Brunetti Facundo
+
+- Nombre y apellidos de los integrantes del grupo;
+- Velasco Benjamin
+- Rodrigo Villegas
+- Barroso Gonzalo
+- Garcia Brunetti Facundo
+
+
 
 Índice
 - [Objetivo del Proyecto](#objetivo-del-proyecto)
@@ -20,22 +23,17 @@ Este proyecto implementa un compilador para un lenguaje imperativo que genera c�
 
 
 EJECUCION 
-Posicionarse en la carpeta raiz /CompiladoresProyecto/ =>> escribir el comando aca.
-COMANDO DE EJECUCION
-java -cp "target/classes;java-cup-11b-runtime.jar" org.example.Main_extended  error_test.txt -all
+- Posicionarse en la carpeta raiz /CompiladoresProyecto/ =>> escribir el comando aca.
+- COMANDO DE EJECUCION
+- java -cp "target/classes;java-cup-11b-runtime.jar" org.example.Main_extended  error_test.txt -all
+- El archivo error_test.txt se encuentra en la carpeta raiz /CompiladoresProyecto/
+- Ademas ahi mismo se genera el codigo assembly error_test.s
+- (Podemos cambiar o agregar cualquier archivo txt para poder ejecutarlo, solo basta cambiar el contenido del error_test.txt)
+- En este caso el proyecto ya tiene generado el parser, sym . De no ser asi aplicar estos comandos en consola
+- PASER CUP (ejecucion en consola en el editor de codigo)
+-  java -jar java-cup-11b.jar -destdir src/main/java/org/example/lparser -package org.example.lparser -parser parser -symbols sym src/main/java/org/example/ycalc_extended.cup
 
-El archivo error_test.txt se encuentra en la carpeta raiz /CompiladoresProyecto/
-Ademas ahi mismo se genera el codigo assembly error_test.s
-(Podemos cambiar o agregar cualquier archivo txt para poder ejecutarlo, solo basta cambiar el contenido del error_test.txt)
-
-En este caso el proyecto ya tiene generado el parser, sym y lexer. De no ser asi aplicar estos comandos en consola
-
-LEXER  (ejecucion en consola en el editor de codigo)
-
-
-PASER CUP (ejecucion en consola en el editor de codigo)
- java -jar java-cup-11b.jar -destdir src/main/java/org/example/lparser -package org.example.lparser -parser parser -symbols sym src/main/java/org/example/ycalc_extended.cup
-
+-------------------------------------------------------------------------------------------
 
 1. Análisis Léxico: Convertir código fuente en tokens
 2. Análisis Sintáctico: Construir un Árbol de Sintaxis Abstracta (AST)
