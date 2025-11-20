@@ -38,6 +38,9 @@ public class sym {
   public static final int ASSIGN = 11;
   public static final int BOOL = 13;
   public static final int VOID = 14;
+  public static final int AND = 30;  // NUEVO - Operador lógico &&
+  public static final int OR = 31;   // NUEVO - Operador lógico ||
+  
   public static final String[] terminalNames = new String[] {
   "EOF",
   "error",
@@ -68,7 +71,8 @@ public class sym {
   "TRUE",
   "FALSE",
   "NUMBER",
-  "ID"
+  "ID",
+  "AND",
+  "OR"
   };
 }
-

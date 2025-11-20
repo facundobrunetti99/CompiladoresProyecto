@@ -1,11 +1,10 @@
 /*
   File Name: lcalc_extended.flex
-  Extended lexer con soporte para if, else, while y comparaciones
+  Extended lexer con soporte para if, else, while, comparaciones y operadores lógicos
   To Create: java -cp jflex-1.8.2.jar jflex.Main lcalc_extended.flex
 */
 
 /* --------------------------Usercode Section------------------------ */
-
 package org.example;
 import java_cup.runtime.*;
 import org.example.sym;
@@ -13,7 +12,6 @@ import org.example.sym;
 %%
 
 /* -----------------Options and Declarations Section----------------- */
-
 %class Lexer
 %line
 %column
@@ -26,7 +24,7 @@ import org.example.sym;
     private Symbol symbol(int type) {
         return new Symbol(type, yyline, yycolumn);
     }
-
+    
     private Symbol symbol(int type, Object value) {
         return new Symbol(type, yyline, yycolumn, value);
     }
@@ -35,17 +33,15 @@ import org.example.sym;
 /*
   Macro Declarations
 */
-
 LineTerminator = \r|\n|\r\n
 WhiteSpace     = {LineTerminator} | [ \t\f]
 dec_int_lit = 0 | [1-9][0-9]*
 identifier = [A-Za-z_][A-Za-z_0-9]*
 
 %%
+
 /* ------------------------Lexical Rules Section---------------------- */
-
 <YYINITIAL> {
-
     /* Keywords */
     "int"              { System.out.print(" INT "); return symbol(sym.INT); }
     "bool"             { System.out.print(" BOOL "); return symbol(sym.BOOL); }
@@ -57,7 +53,19 @@ identifier = [A-Za-z_][A-Za-z_0-9]*
     "while"            { System.out.print(" WHILE "); return symbol(sym.WHILE); }
     "true"             { System.out.print(" TRUE "); return symbol(sym.TRUE, Boolean.TRUE); }
     "false"            { System.out.print(" FALSE "); return symbol(sym.FALSE, Boolean.FALSE); }
-
+    
+    /* Logical operators - DEBEN IR ANTES QUE LOS OPERADORES SIMPLES */
+    "&&"               { System.out.print(" && "); return symbol(sym.AND); }
+    "||"               { System.out.print(" || "); return symbol(sym.OR); }
+    
+    /* Comparison operators - LOS DE DOS CARACTERES PRIMERO */
+    "=="               { System.out.print(" == "); return symbol(sym.EQ); }
+    "!="               { System.out.print(" != "); return symbol(sym.NE); }
+    "<="               { System.out.print(" <= "); return symbol(sym.LE); }
+    ">="               { System.out.print(" >= "); return symbol(sym.GE); }
+    "<"                { System.out.print(" < "); return symbol(sym.LT); }
+    ">"                { System.out.print(" > "); return symbol(sym.GT); }
+    
     /* Operators and delimiters */
     ";"                { System.out.print(" ; "); return symbol(sym.SEMI); }
     "="                { System.out.print(" = "); return symbol(sym.ASSIGN); }
@@ -69,14 +77,6 @@ identifier = [A-Za-z_][A-Za-z_0-9]*
     ")"                { System.out.print(" ) "); return symbol(sym.RPAREN); }
     "{"                { System.out.print(" { "); return symbol(sym.LBRACE); }
     "}"                { System.out.print(" } "); return symbol(sym.RBRACE); }
-
-    /* Comparison operators */
-    "=="               { System.out.print(" == "); return symbol(sym.EQ); }
-    "!="               { System.out.print(" != "); return symbol(sym.NE); }
-    "<"                { System.out.print(" < "); return symbol(sym.LT); }
-    ">"                { System.out.print(" > "); return symbol(sym.GT); }
-    "<="               { System.out.print(" <= "); return symbol(sym.LE); }
-    ">="               { System.out.print(" >= "); return symbol(sym.GE); }
    
     /* Numbers */
     {dec_int_lit}      { System.out.print(yytext());

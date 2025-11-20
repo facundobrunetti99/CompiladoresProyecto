@@ -69,6 +69,7 @@ terminal           LBRACE, RBRACE, ASSIGN;
 terminal           INT, BOOL, VOID, MAIN, RETURN;
 terminal           IF, ELSE, WHILE;
 terminal           EQ, NE, LT, GT, LE, GE;
+terminal           AND, OR;  // NUEVO - Operadores lógicos
 terminal           TRUE, FALSE;
 terminal Integer   NUMBER;
 terminal String    ID;
@@ -88,7 +89,9 @@ non terminal WhileNode             while_stmt;
 non terminal ExpressionNode        expr;
 non terminal ExpressionNode        comparison;
 
-/* Precedencia */
+/* Precedencia - Operadores lógicos tienen menor precedencia que comparaciones */
+precedence left OR;
+precedence left AND;
 precedence left EQ, NE;
 precedence left LT, GT, LE, GE;
 precedence left PLUS, MINUS;
@@ -197,7 +200,18 @@ while_stmt ::= WHILE LPAREN comparison:c RPAREN LBRACE statement_list:body RBRAC
 :}
 ;
 
-comparison ::= expr:e1 EQ expr:e2
+/* Comparaciones y operadores lógicos */
+comparison ::= comparison:e1 OR comparison:e2
+{:
+    System.out.println("  Operación lógica: ||");
+    RESULT = new LogicalOpNode(e1, "||", e2);
+:}
+| comparison:e1 AND comparison:e2
+{:
+    System.out.println("  Operación lógica: &&");
+    RESULT = new LogicalOpNode(e1, "&&", e2);
+:}
+| expr:e1 EQ expr:e2
 {:
     System.out.println("  Comparación: ==");
     RESULT = new ComparisonNode(e1, "==", e2);
@@ -233,6 +247,7 @@ comparison ::= expr:e1 EQ expr:e2
 :}
 ;
 
+/* Expresiones aritméticas */
 expr ::= expr:e1 PLUS expr:e2
 {:
     System.out.println("  Operación: +");
@@ -253,7 +268,7 @@ expr ::= expr:e1 PLUS expr:e2
     System.out.println("  Operación: /");
     RESULT = new BinaryOpNode(e1, "/", e2);
 :}
-| LPAREN expr:e RPAREN
+| LPAREN comparison:e RPAREN
 {:
     RESULT = e;
 :}

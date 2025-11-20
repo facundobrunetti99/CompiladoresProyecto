@@ -10,6 +10,7 @@ import org.example.ast.BooleanNode;
 import org.example.ast.ComparisonNode;
 import org.example.ast.DeclarationNode;
 import org.example.ast.IfNode;
+import org.example.ast.LogicalOpNode;
 import org.example.ast.MainFunctionNode;
 import org.example.ast.NumberNode;
 import org.example.ast.ProgramNode;
@@ -20,8 +21,8 @@ import org.example.ast.VariableNode;
 import org.example.ast.WhileNode;
 
 /**
- * Clase para imprimir el AST como un árbol visual en consola Soporta:
- * variables, asignaciones, operaciones, if, else, while, comparaciones
+ * Clase para imprimir el AST como un árbol visual en consola
+ * Soporta: variables, asignaciones, operaciones, if, else, while, comparaciones, operadores lógicos
  */
 public class ASTtreePrinter implements ASTVisitor {
 
@@ -212,6 +213,30 @@ public class ASTtreePrinter implements ASTVisitor {
             isLastChild[depth] = (i == body.size() - 1);
             body.get(i).accept(this);
         }
+        depth--;
+
+        depth--;
+    }
+
+    @Override
+    public void visit(LogicalOpNode node) {
+        String details = "Operator: " + node.getOperator();
+        printWithIndent("LOGICAL_OPERATION", details, isLastChild[depth]);
+
+        depth++;
+
+        // Operando izquierdo
+        printWithIndent("LEFT_OPERAND", null, false);
+        depth++;
+        isLastChild[depth] = true;
+        node.getLeft().accept(this);
+        depth--;
+
+        // Operando derecho
+        printWithIndent("RIGHT_OPERAND", null, true);
+        depth++;
+        isLastChild[depth] = true;
+        node.getRight().accept(this);
         depth--;
 
         depth--;

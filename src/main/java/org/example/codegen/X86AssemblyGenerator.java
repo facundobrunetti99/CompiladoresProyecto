@@ -10,6 +10,7 @@ import org.example.ast.BooleanNode;
 import org.example.ast.ComparisonNode;
 import org.example.ast.DeclarationNode;
 import org.example.ast.IfNode;
+import org.example.ast.LogicalOpNode;
 import org.example.ast.MainFunctionNode;
 import org.example.ast.NumberNode;
 import org.example.ast.ProgramNode;
@@ -60,7 +61,7 @@ public class X86AssemblyGenerator implements ASTVisitor {
     public String generateCode(ProgramNode program) {
         program.accept(this);
         StringBuilder output = new StringBuilder();
-        output.append("# x86-64 Assembly Code con estructuras de control\n");
+        output.append("# x86-64 Assembly Code con estructuras de control y operadores lógicos\n");
         output.append(".section .text\n");
         output.append(".global main\n\n");
         output.append(code.toString());
@@ -279,6 +280,86 @@ public class X86AssemblyGenerator implements ASTVisitor {
 
         code.append(endLabel).append(":\n");
         simulation.append("# --- END WHILE (Total iteraciones: " + iterationCount + ") ---\n\n");
+    }
+
+    @Override
+    public void visit(LogicalOpNode node) {
+        if (node.getOperator().equals("&&")) {
+            // Short-circuit evaluation para AND
+            String falseLabel = generateLabel();
+            String endLabel = generateLabel();
+            
+            // Evaluar operando izquierdo
+            node.getLeft().accept(this);
+            long leftValue = getRegister("rax");
+            
+            code.append("    cmpq $0, %rax\n");
+            code.append("    je ").append(falseLabel).append("\n");
+            addSimulationStep("je " + falseLabel, "Si izquierdo es falso, resultado es falso (short-circuit)");
+            
+            // Si llegamos aquí, izquierdo es true, evaluar derecho
+            node.getRight().accept(this);
+            long rightValue = getRegister("rax");
+            
+            code.append("    cmpq $0, %rax\n");
+            code.append("    je ").append(falseLabel).append("\n");
+            
+            // Ambos son true
+            code.append("    movl $1, %eax\n");
+            code.append("    jmp ").append(endLabel).append("\n");
+            
+            code.append(falseLabel).append(":\n");
+            code.append("    xorq %rax, %rax\n");
+            
+            code.append(endLabel).append(":\n");
+            
+            long result = (leftValue != 0 && rightValue != 0) ? 1 : 0;
+            updateRegister("rax", result);
+            addSimulationStep("Logical AND", leftValue + " && " + rightValue + " = " + result);
+            
+            if (executeSimulation) {
+                simulation.append("         >> rax = ").append(result).append(" (")
+                    .append(result == 1 ? "true" : "false").append(")\n\n");
+            }
+            
+        } else if (node.getOperator().equals("||")) {
+            // Short-circuit evaluation para OR
+            String trueLabel = generateLabel();
+            String endLabel = generateLabel();
+            
+            // Evaluar operando izquierdo
+            node.getLeft().accept(this);
+            long leftValue = getRegister("rax");
+            
+            code.append("    cmpq $0, %rax\n");
+            code.append("    jne ").append(trueLabel).append("\n");
+            addSimulationStep("jne " + trueLabel, "Si izquierdo es true, resultado es true (short-circuit)");
+            
+            // Si llegamos aquí, izquierdo es false, evaluar derecho
+            node.getRight().accept(this);
+            long rightValue = getRegister("rax");
+            
+            code.append("    cmpq $0, %rax\n");
+            code.append("    jne ").append(trueLabel).append("\n");
+            
+            // Ambos son false
+            code.append("    xorq %rax, %rax\n");
+            code.append("    jmp ").append(endLabel).append("\n");
+            
+            code.append(trueLabel).append(":\n");
+            code.append("    movl $1, %eax\n");
+            
+            code.append(endLabel).append(":\n");
+            
+            long result = (leftValue != 0 || rightValue != 0) ? 1 : 0;
+            updateRegister("rax", result);
+            addSimulationStep("Logical OR", leftValue + " || " + rightValue + " = " + result);
+            
+            if (executeSimulation) {
+                simulation.append("         >> rax = ").append(result).append(" (")
+                    .append(result == 1 ? "true" : "false").append(")\n\n");
+            }
+        }
     }
 
     @Override
