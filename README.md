@@ -1,9 +1,9 @@
 Compilador de Lenguaje Imperativo con Generación de Código x86-64
 Nombre y apellidos de los integrantes del grupo;
--Villegas Rodrigo
--Velasco Benjamin
--Barroso Gonzalo
--Garcia Brunetti Facundo
+ -Villegas Rodrigo
+ -Velasco Benjamin
+ -Barroso Gonzalo
+ -Garcia Brunetti Facundo
 
 Índice
 - [Objetivo del Proyecto](#objetivo-del-proyecto)
