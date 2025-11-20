@@ -1,6 +1,5 @@
-
 package org.example.ast;
 
 public abstract class ExpressionNode extends ASTNode {
-    // Base class for all expressions
+    // Clase base para todas las expresiones
 }

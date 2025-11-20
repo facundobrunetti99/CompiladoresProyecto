@@ -1,6 +1,7 @@
 Ejecucion del codigo
 
 
+En este proyecto se desarrollaron multiples funcionalidades para poder lograr la parte final del mismo
 Importante
 
 
